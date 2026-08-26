@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Air-Gapped RHEL &amp; Satellite — Field Manual</title>
+<style>
+  :root{
+    color-scheme:light dark;
+    --ink:#0f1720; --steel:#1d2733; --steel-2:#26333f; --rail:#1a232e;
+    --paper:#f5f7f9; --card:#fff; --line:#cfd6de; --muted:#3f4c58;
+    --amber:#a86611; --amber-bg:#fbeed3; --amber-line:#e6cd9a;
+    --green:#1f6b40; --green-bg:#e0f0e6; --green-line:#b0d6bf;
+    --red:#a32c22;   --red-bg:#f7e2df;   --red-line:#e4b2ab;
+    --blue:#1f5578;  --blue-bg:#e0edf5;  --blue-line:#aecbe0;
+    --term-bg:#161e28; --term-fg:#f0f4f8; --term-dim:#adbfce; --term-ph:#f4bd5a;
+    --mono:ui-monospace,"Cascadia Code","Consolas","Liberation Mono",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+
+  .shell{display:flex;min-height:100vh;max-width:1180px;margin:0 auto}
+
+  /* ---- Left rail ---- */
+  .rail{width:250px;flex:none;background:var(--rail);color:#fff;position:sticky;top:0;height:100vh;overflow-y:auto;padding:20px 0 30px}
+  .brand{padding:0 20px 15px;border-bottom:1px solid #2c3947;margin-bottom:8px}
+  .brand .kick{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--term-ph);margin:0 0 6px}
+  .brand h1{font-size:16.5px;line-height:1.2;margin:0;font-weight:800;letter-spacing:-.01em}
+  .brand p{font-size:12px;color:#aab6c2;margin:6px 0 0}
+  .rail nav{display:flex;flex-direction:column;padding:6px 10px}
+  .navbtn{appearance:none;border:0;background:transparent;color:#c4cdd7;cursor:pointer;text-align:left;
+    font-family:var(--sans);font-size:13px;font-weight:600;padding:8px 11px;border-radius:8px;
+    display:flex;align-items:center;gap:9px;transition:background .12s,color .12s;line-height:1.25}
+  .navbtn:hover{background:rgba(255,255,255,.07);color:#fff}
+  .navbtn .n{font-family:var(--mono);font-size:10.5px;color:#7f8d9b;flex:none;width:15px}
+  .navbtn .dot{width:8px;height:8px;border-radius:50%;background:#66727e;flex:none}
+  .navbtn[data-tone=amber] .dot{background:#d79433}
+  .navbtn[data-tone=green] .dot{background:#3f9c68}
+  .navbtn[data-tone=red] .dot{background:#cf5347}
+  .navbtn[data-tone=blue] .dot{background:#4f8fb8}
+  .navbtn[aria-current=true]{background:var(--steel-2);color:#fff}
+  .navbtn[aria-current=true] .n{color:var(--term-ph)}
+  .navbtn:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+
+  /* ---- Main ---- */
+  main{flex:1;min-width:0;padding:30px 42px 70px;max-width:880px}
+  .panel{display:none}
+  .panel.active{display:block;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);margin:0 0 6px;font-weight:700}
+  h2.title{font-size:25px;margin:0 0 8px;font-weight:800;letter-spacing:-.015em;color:var(--ink)}
+  .lead{color:var(--muted);font-size:15.5px;margin:0 0 20px;max-width:700px}
+  h3{font-size:16.5px;margin:26px 0 9px;font-weight:800;border-top:1px solid var(--line);padding-top:18px;color:var(--ink)}
+  h3:first-of-type{border-top:0;padding-top:0}
+  h4{font-size:14.5px;margin:16px 0 6px;font-weight:700;color:var(--steel)}
+  p{margin:0 0 12px;color:var(--ink)}
+  .plain{font-size:15px}
+  strong{font-weight:700}
+  em{font-style:italic}
+  u{text-decoration:underline}
+  code.k{font-family:var(--mono);font-size:13px;background:#e6ebf0;border:1px solid #d3dae1;border-radius:4px;padding:1px 5px;color:#173040}
+
+  /* command block */
+  .cmd{position:relative;background:var(--term-bg);color:var(--term-fg);font-family:var(--mono);
+    font-size:13px;line-height:1.65;border-radius:9px;padding:13px 15px;margin:10px 0 16px;overflow-x:auto;white-space:pre}
+  .cmd .c{color:var(--term-dim)}
+  .cmd .ph{color:var(--term-ph);font-style:italic}
+  .cmd .copy{position:absolute;top:8px;right:8px;background:#2c3a49;color:#d3dce4;border:0;border-radius:6px;
+    font-family:var(--sans);font-size:11px;padding:4px 9px;cursor:pointer;opacity:.85;transition:opacity .12s,background .12s}
+  .cmd .copy:hover{opacity:1;background:#3a4b5c}
+  .cmd .copy.done{background:var(--green);color:#fff;opacity:1}
+
+  /* aligned definition lists (flags / terms) */
+  dl.flags{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;margin:10px 0 16px;align-items:baseline}
+  dl.flags dt{font-family:var(--mono);font-size:13.5px;font-weight:700;color:#2563eb;white-space:nowrap}
+  dl.flags dd{margin:0;font-size:14.5px;color:var(--ink)}
+
+  .call{border-radius:9px;padding:12px 15px;margin:14px 0;font-size:14.5px;border:1px solid}
+  .call .h{font-weight:800;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;margin:0 0 5px}
+  .call.amber{background:var(--amber-bg);border-color:var(--amber-line);color:#5f420a}
+  .call.green{background:var(--green-bg);border-color:var(--green-line);color:#124a2c}
+  .call.red{background:var(--red-bg);border-color:var(--red-line);color:#71211a}
+  .call.blue{background:var(--blue-bg);border-color:var(--blue-line);color:#123a54}
+  .call p{margin:0;color:inherit}.call p+p{margin-top:6px}
+
+  ol.steps{margin:6px 0 16px;padding:0;counter-reset:s;list-style:none}
+  ol.steps>li{position:relative;padding:2px 0 2px 34px;margin:0 0 12px;counter-increment:s;font-size:15px}
+  ol.steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:23px;height:23px;border-radius:50%;
+    background:var(--steel);color:#fff;font-family:var(--mono);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  ul.tight{margin:6px 0 14px;padding-left:20px}
+  ul.tight li{margin:0 0 6px;font-size:14.5px}
+  ul.check{list-style:none;padding:0;margin:8px 0 16px}
+  ul.check li{position:relative;padding:1px 0 1px 30px;margin:0 0 9px;font-size:15px}
+  ul.check li::before{content:"";position:absolute;left:0;top:4px;width:15px;height:15px;border:2px solid #2563eb;border-radius:3px;background:#fff}
+  .phase{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;color:#fff;background:#2563eb;border-radius:5px;padding:2px 8px;margin-right:8px;vertical-align:middle}
+  .diagram{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0 6px;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:500px}
+  .dg-box{fill:var(--card);stroke:#8aa0b3;stroke-width:1.5}
+  .dg-accent{fill:rgba(37,99,235,.15);stroke:#4f8fb8;stroke-width:1.5}
+  .dg-dark{fill:#1d2733;stroke:#1d2733}
+  .dg-t{fill:var(--ink);font-family:var(--sans);font-size:12px}
+  .dg-s{fill:var(--muted);font-family:var(--sans);font-size:10.5px}
+  .dg-w{fill:#fff;font-family:var(--sans);font-size:12px}
+  .dg-num{fill:#fff;font-family:var(--mono);font-size:12px;font-weight:700}
+  .dg-numbg{fill:#2563eb}
+  .dg-arrow{stroke:#2563eb;stroke-width:2;fill:none}
+  .caption{font-size:12.5px;color:var(--muted);margin:0 0 16px}
+  ol.legend{margin:6px 0 16px;padding-left:0;list-style:none;counter-reset:lg}
+  ol.legend li{position:relative;padding:1px 0 1px 30px;margin:0 0 7px;font-size:14.5px;counter-increment:lg}
+  ol.legend li::before{content:counter(lg);position:absolute;left:0;top:1px;width:19px;height:19px;border-radius:50%;background:#2563eb;color:#fff;font-family:var(--mono);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+  table.g{border-collapse:collapse;width:100%;margin:8px 0 18px;font-size:13.5px}
+  table.g th,table.g td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  table.g th{background:var(--steel);color:#fff;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  table.g td:first-child{font-weight:700;color:var(--steel);white-space:nowrap}
+  table.g tr:nth-child(even) td{background:#eaeef2}
+
+  /* issue cards */
+  .issue{border:1px solid var(--line);border-left:5px solid #cf5347;border-radius:9px;padding:14px 16px 6px;margin:16px 0;background:#fff}
+  .issue h4{margin:0 0 4px;font-size:16px;color:var(--red);font-weight:800}
+  .issue .sym{font-size:14px;color:var(--muted);margin:0 0 8px}
+  .issue .lbl{font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#2563eb;margin:12px 0 3px}
+  .issue .lbl.fix{color:var(--green)}
+
+  footer.foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px}
+
+  @media screen and (prefers-color-scheme: dark){
+    :root{
+      --paper:#0f151c; --card:#161f29; --ink:#e9eef3; --muted:#b0bcc8;
+      --line:#2a3540; --amber:#e0a441;
+    }
+    code.k{background:#1e2833;border-color:#33414e;color:#d3e2ef}
+    dl.flags dt{color:#6ea8fe}
+    h4{color:#cdd8e2}
+    .issue{background:#161f29;border-left-color:#e0655a}
+    .issue h4{color:#ff9084}
+    .issue .lbl{color:#6ea8fe}
+    table.g td{border-color:#2a3540}
+    table.g td:first-child{color:#cdd8e2}
+    table.g tr:nth-child(even) td{background:#19222c}
+    ul.check li::before{border-color:#6ea8fe;background:#0f151c}
+    .call.amber{background:#33280f;border-color:#5a481d;color:#f2d69a}
+    .call.green{background:#123020;border-color:#20502f;color:#a9e2c1}
+    .call.red{background:#3a1a15;border-color:#5c2a23;color:#f2b3aa}
+    .call.blue{background:#112434;border-color:#1f3f57;color:#a9d2ee}
+    .eyebrow{color:#e0a441}
+  }
+
+  @media print{
+    :root{--paper:#fff}
+    .rail{display:none}
+    .shell{display:block;max-width:none}
+    main{max-width:none;padding:0 8px}
+    .panel{display:block !important;page-break-before:always;padding-top:6px}
+    .panel:first-of-type{page-break-before:avoid}
+    .cmd{background:#eef1f4;color:#10202c;border:1px solid #c4ccd4}
+    .cmd .c{color:#5a6b78}.cmd .ph{color:#9a6a05;font-weight:700}.cmd .copy{display:none}
+    .call{border:1px solid #b9c2ca !important}
+    .issue{page-break-inside:avoid}
+    h2.title{font-size:19px}
+    body{font-size:11.5px}
+  }
+  @media (prefers-reduced-motion:reduce){.panel{animation:none}}
+  @media (max-width:820px){
+    .shell{flex-direction:column}
+    .rail{width:100%;height:auto;position:sticky;top:0;z-index:5;padding:12px 0}
+    .brand{padding:0 16px 10px}
+    .rail nav{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;padding:8px 10px;gap:4px}
+    .navbtn{flex:none;white-space:nowrap;padding:8px 11px}
+    .navbtn .n{display:none}
+    main{padding:22px 18px 60px}
+    dl.flags{grid-template-columns:1fr;gap:2px 0}
+    dl.flags dt{margin-top:8px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <div class="brand">
+      <p class="kick">Field Manual</p>
+      <h1>Air-Gapped RHEL &amp; Satellite</h1>
+      <p>Plain-language on-site reference. Click a section.</p>
+      <p style="margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--term-ph);letter-spacing:.04em">v1.1 &nbsp;·&nbsp; 23 sections</p>
+    </div>
+    <nav id="nav" aria-label="Sections">
+      <button class="navbtn" data-tone="blue"  aria-current="true" data-p="p0"><span class="n">00</span><span class="dot"></span>Overview &amp; Terms</button>
+      <button class="navbtn" data-tone="green" data-p="p15"><span class="n">★</span><span class="dot"></span>Day 1 On-Site</button>
+      <button class="navbtn" data-tone="red" data-p="p23"><span class="n">L</span><span class="dot"></span>Lab: RHEL 8→9 (Test)</button>
+      <button class="navbtn" data-tone="blue"  data-p="p1"><span class="n">01</span><span class="dot"></span>First Hour (Recon)</button>
+      <button class="navbtn" data-tone="amber" data-p="p2"><span class="n">02</span><span class="dot"></span>Repos &amp; Content Sync</button>
+      <button class="navbtn" data-tone="blue"  data-p="p3"><span class="n">03</span><span class="dot"></span>Containers</button>
+      <button class="navbtn" data-tone="amber" data-p="p4"><span class="n">04</span><span class="dot"></span>Patching</button>
+      <button class="navbtn" data-tone="green" data-p="p5"><span class="n">05</span><span class="dot"></span>User Accounts</button>
+      <button class="navbtn" data-tone="green" data-p="p6"><span class="n">06</span><span class="dot"></span>IDM &amp; SSH Keys</button>
+      <button class="navbtn" data-tone="green" data-p="p7"><span class="n">07</span><span class="dot"></span>DNS &amp; BIND</button>
+      <button class="navbtn" data-tone="blue"  data-p="p8"><span class="n">08</span><span class="dot"></span>Firewall · Ports · Logs</button>
+      <button class="navbtn" data-tone="amber" data-p="p9"><span class="n">09</span><span class="dot"></span>Storage &amp; LVM</button>
+      <button class="navbtn" data-tone="blue"  data-p="p10"><span class="n">10</span><span class="dot"></span>vCenter</button>
+      <button class="navbtn" data-tone="blue"  data-p="p11"><span class="n">11</span><span class="dot"></span>Cockpit</button>
+      <button class="navbtn" data-tone="red"   data-p="p12"><span class="n">12</span><span class="dot"></span>Common Issues &amp; Fixes</button>
+      <button class="navbtn" data-tone="red"   data-p="p13"><span class="n">13</span><span class="dot"></span>Backup &amp; Restore</button>
+      <button class="navbtn" data-tone="green" data-p="p14"><span class="n">14</span><span class="dot"></span>Scripts &amp; Cron</button>
+      <button class="navbtn" data-tone="blue"  data-p="p16"><span class="n">15</span><span class="dot"></span>Hard &amp; Soft Links</button>
+      <button class="navbtn" data-tone="red"   data-p="p17"><span class="n">16</span><span class="dot"></span>STIG &amp; SCAP Compliance</button>
+      <button class="navbtn" data-tone="blue"  data-p="p18"><span class="n">17</span><span class="dot"></span>Networking (nmcli)</button>
+      <button class="navbtn" data-tone="green" data-p="p19"><span class="n">18</span><span class="dot"></span>Ansible from Scratch</button>
+      <button class="navbtn" data-tone="blue"  data-p="p20"><span class="n">19</span><span class="dot"></span>Golden Images &amp; Templates</button>
+      <button class="navbtn" data-tone="green" data-p="p21"><span class="n">20</span><span class="dot"></span>Mail Relay Server</button>
+      <button class="navbtn" data-tone="blue"  data-p="p22"><span class="n">21</span><span class="dot"></span>Basic Commands (Daily)</button>
+    </nav>
+  </aside>
+
+  <main>
+
+    <!-- 00 OVERVIEW -->
+    <section class="panel active" id="p0">
+      <p class="eyebrow">Section 00</p>
+      <h2 class="title">The Big Picture &amp; the Words You'll Hear</h2>
+      <p class="lead">Why this setup exists, and a plain-English translation of the jargon so the rest of the manual makes sense.</p>
+
+      <h3>Two Satellites, and content moves as files</h3>
+      <p class="plain">You have <strong>two</strong> Satellite servers:</p>
+      <ul class="tight">
+        <li><strong>Connected Satellite (low side)</strong> — the only box allowed to talk to Red Hat. It downloads all the packages and container images.</li>
+        <li><strong>Disconnected Satellite (high side)</strong> — the classified box. Never touches the internet. It only gets content as <strong>files you carry over</strong>.</li>
+      </ul>
+      <p class="plain">Everything moves as a file: <strong>export</strong> a bundle on the low side → <strong>transfer</strong> it across the guard/diode → <strong>import</strong> it on the high side. Your users just point their machines at the high-side Satellite and never know the difference.</p>
+
+      <div class="call amber">
+        <p class="h">◆ The one rule that matters</p>
+        <p>A <strong>snapshot is not a backup</strong> (see Section 13). And on Satellite, patching isn't done box-by-box — it's importing content, publishing a new Content View version, and promoting it. Keep those two ideas in mind and the rest clicks.</p>
+      </div>
+
+      <h3>Words, translated</h3>
+      <table class="g">
+        <tr><th>Term</th><th>In plain terms</th></tr>
+        <tr><td>Repo</td><td>A folder of software the box installs from.</td></tr>
+        <tr><td>Manifest</td><td>A license file from Red Hat proving you're allowed to have the content.</td></tr>
+        <tr><td>Content View (CV)</td><td>A labeled snapshot of repos — "a frozen bundle you approved."</td></tr>
+        <tr><td>Lifecycle Env.</td><td>A stage the bundle moves through: Dev → Test → Production.</td></tr>
+        <tr><td>Errata</td><td>Patches (security/bug fixes). On Satellite, patching = pushing new errata.</td></tr>
+        <tr><td>Pulp</td><td>The engine under Satellite that stores all the content on disk.</td></tr>
+        <tr><td>ISS / Export-Import</td><td>The official "carry content across the air gap" workflow.</td></tr>
+        <tr><td>IDM (FreeIPA)</td><td>The identity server: logins, Kerberos, DNS, certificates.</td></tr>
+        <tr><td>Cockpit</td><td>A web dashboard (port 9090) to manage one box by clicking, not typing.</td></tr>
+        <tr><td>vCenter</td><td>The control panel for the VMs — the "hardware" layer under the OS.</td></tr>
+        <tr><td>Snapshot</td><td>A fast, temporary "undo point" for a VM. Delete it after — not a backup.</td></tr>
+      </table>
+
+      <h3>Before you paste: what's a placeholder</h3>
+      <p class="plain">Every command in here is real and verified. Inside the black command boxes, anything shown in <span style="color:#a86611;font-style:italic;font-weight:700">amber italic</span> is a placeholder — swap it for your real value before running. Everything else runs as-is.</p>
+      <table class="g">
+        <tr><th>Placeholder</th><th>Replace with — and how to find it</th></tr>
+        <tr><td>YourOrg</td><td>Your Satellite org name — <code class="k">hammer organization list</code></td></tr>
+        <tr><td>RHEL9-Base</td><td>Your Content View name — <code class="k">hammer content-view list</code></td></tr>
+        <tr><td>YourExportDir</td><td>The folder your export landed in, under <code class="k">/var/lib/pulp/imports/</code></td></tr>
+        <tr><td>satellite.example.com</td><td>Your Satellite's real hostname</td></tr>
+        <tr><td>web01.example.com</td><td>The hostname of the box you're on</td></tr>
+        <tr><td>example.com</td><td>Your real DNS domain / zone</td></tr>
+        <tr><td>10.1.1.50</td><td>The box's real IP address</td></tr>
+        <tr><td>jdoe / ian</td><td>Real usernames</td></tr>
+        <tr><td>/dev/sdb</td><td>The real new disk name — check with <code class="k">lsblk</code></td></tr>
+        <tr><td>datavg / datalv</td><td>Your real volume group / logical volume — <code class="k">vgs</code> and <code class="k">lvs</code></td></tr>
+      </table>
+    </section>
+
+    <!-- 01 RECON -->
+    <section class="panel" id="p1">
+      <p class="eyebrow">Section 01</p>
+      <h2 class="title">First Hour On-Site: What Do I Have?</h2>
+      <p class="lead">Before you change anything, learn what these boxes are and where they get their content. Each command below tells you one piece of the puzzle.</p>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># which RHEL version? tells you which docs/commands apply (8, 9, or 10)</span>
+cat /etc/redhat-release
+
+<span class="c"># hostname, time zone, and whether it's a VM — general lay of the land</span>
+hostnamectl
+
+<span class="c"># is this box registered, and healthy? "Overall Status: Current" is good</span>
+subscription-manager status
+
+<span class="c"># confirms it pulls from your Satellite, not Red Hat directly</span>
+subscription-manager identity
+
+<span class="c"># which repos can it install from right now?</span>
+dnf repolist
+
+<span class="c"># the raw repo config files live here — open them to see the URLs</span>
+ls /etc/yum.repos.d/</div>
+      <div class="call blue">
+        <p class="h">▸ What you're really checking</p>
+        <p>The <code class="k">identity</code> output tells you these clients feed from your Satellite. That's the whole game — patching, containers, and new boxes all flow from the Satellite, which is fed by the export/import cycle in Section 02.</p>
+      </div>
+      <h3>Who am I logged in as, and what can I do?</h3>
+      <div class="cmd"><button class="copy">Copy</button>whoami            <span class="c"># your username</span>
+id                <span class="c"># your user ID + the groups you're in (wheel = sudo rights)</span>
+sudo -l           <span class="c"># exactly what you're allowed to run as root</span></div>
+    </section>
+
+    <!-- 02 REPOS -->
+    <section class="panel" id="p2">
+      <p class="eyebrow">Section 02</p>
+      <h2 class="title">Repos &amp; Content Sync (the core job)</h2>
+      <p class="lead">Pull updates + containers on the connected side, carry them across the gap, import them on the classified side. This is most of what you're there to do, and it runs every patch cycle.</p>
+
+      <div class="call blue">
+        <p class="h">▸ What is "YourOrg"?</p>
+        <p>Not a fixed Red Hat name — it's whatever your site named its Organization in Satellite. A built-in "Default Organization" exists, but most shops make their own. Run <code class="k">hammer organization list</code> and use that exact name.</p>
+      </div>
+
+      <h3>Step A — on the CONNECTED (low-side) Satellite</h3>
+      <p class="plain">First time (a full baseline copy of a bundle):</p>
+      <div class="cmd"><button class="copy">Copy</button>hammer content-export complete version \
+  --content-view "<span class="ph">RHEL9-Base</span>" --version "1.0" \
+  --organization "<span class="ph">YourOrg</span>" --format importable</div>
+      <p class="plain">Every time after (only the new stuff — faster and smaller):</p>
+      <div class="cmd"><button class="copy">Copy</button>hammer content-export incremental version \
+  --content-view "<span class="ph">RHEL9-Base</span>" --version "2.0" \
+  --organization "<span class="ph">YourOrg</span>" --format importable</div>
+      <h4>What each part means</h4>
+      <dl class="flags">
+        <dt>complete</dt><dd>Export EVERYTHING (use the first time).</dd>
+        <dt>incremental</dt><dd>Export only what changed since last time (use every time after).</dd>
+        <dt>--content-view</dt><dd>Which approved bundle to export.</dd>
+        <dt>--version</dt><dd>Which numbered snapshot of that bundle.</dd>
+        <dt>--organization</dt><dd>Your org name in Satellite.</dd>
+        <dt>--format importable</dt><dd>MUST use this to include CONTAINERS. (The other option, 'syncable', is packages-only.)</dd>
+        <dt>--chunk-size-gb 5</dt><dd>Optional — splits the output into 5&nbsp;GB pieces if your transfer method has a size cap.</dd>
+      </dl>
+      <p class="plain">Output lands in <code class="k">/var/lib/pulp/exports/</code> — grab the tarball <strong>and</strong> the <code class="k">.json</code> file next to it.</p>
+      <div class="call amber"><p class="h">◆ Same-version rule</p><p>For 'importable' (containers), both Satellites must be on the <strong>same version</strong>, or the export silently won't import. Check both before you start.</p></div>
+
+      <h3>Step B — carry it across</h3>
+      <p class="plain">Move the tarball + <code class="k">.json</code> across your guard/diode/media, following your site's transfer rules.</p>
+
+      <h3>Step C — on the DISCONNECTED (high-side) Satellite</h3>
+      <p class="plain">Drop the files into the import folder (must be here, owned by the pulp user):</p>
+      <div class="cmd"><button class="copy">Copy</button>/var/lib/pulp/imports/    <span class="c"># owner must be pulp:pulp</span></div>
+      <p class="plain">Then import:</p>
+      <div class="cmd"><button class="copy">Copy</button>hammer content-import version \
+  --organization "<span class="ph">YourOrg</span>" \
+  --path /var/lib/pulp/imports/<span class="ph">YourExportDir</span></div>
+      <p class="plain">'importable' auto-creates the products, repos, and Content View if they don't exist yet. Then publish/promote the CV and your clients pick it up.</p>
+
+      <h3>One-time setup on the disconnected side</h3>
+      <p class="plain">Do these ONCE before your first import, or it fails:</p>
+      <ol class="steps">
+        <li>Upload the license (manifest) you carried over:
+          <div class="cmd"><button class="copy">Copy</button>hammer subscription upload \
+  --file <span class="ph">/path/manifest.zip</span> --organization "<span class="ph">YourOrg</span>"</div></li>
+        <li>Make sure your account has the <strong>Content Importer</strong> role.</li>
+        <li>Make sure <code class="k">/var/lib/pulp/imports/</code> exists and is owned by <code class="k">pulp:pulp</code>.</li>
+      </ol>
+    </section>
+
+    <!-- 03 CONTAINERS -->
+    <section class="panel" id="p3">
+      <p class="eyebrow">Section 03</p>
+      <h2 class="title">Containers: Serving Images to Others</h2>
+      <p class="lead">Good news: containers ride <em>inside</em> the same import from Section 02 — there's no separate pipeline to run.</p>
+      <p class="plain">On the low side you sync the container repos into a Product and add them to the Content View like any other repo. Once imported and promoted, <strong>your high-side Satellite IS the registry.</strong> Clients pull like this:</p>
+      <div class="cmd"><button class="copy">Copy</button>podman login <span class="ph">satellite.example.com</span>
+podman pull <span class="ph">satellite.example.com</span>/<span class="ph">yourorg-product-repo</span>:<span class="ph">tag</span></div>
+      <h3>Three things that trip people up</h3>
+      <dl class="flags">
+        <dt>CA trust</dt><dd>Each client needs the Satellite CA cert at <code class="k">/etc/containers/certs.d/&lt;satellite&gt;/ca.crt</code> or the pull fails on TLS.</dd>
+        <dt>Ugly names</dt><dd>The default image name is <code class="k">org-product-repo</code> mashed together. Set a <strong>Registry Name Pattern</strong> on the CV to give people a clean pull path. Do this on day one.</dd>
+        <dt>Auth</dt><dd><code class="k">podman login</code> auto-creates a token. Or turn on <strong>Unauthenticated Pull</strong> on a lifecycle environment (e.g. Production) so people can pull with no credentials.</dd>
+      </dl>
+    </section>
+
+    <!-- 04 PATCHING -->
+    <section class="panel" id="p4">
+      <p class="eyebrow">Section 04</p>
+      <h2 class="title">Patching (this changed since RHEL 7)</h2>
+      <p class="lead"><code class="k">dnf</code> replaced <code class="k">yum</code> (yum is just a shortcut to dnf now). On Satellite, patching is a "promote-and-pull" flow, not a per-box chore.</p>
+
+      <h3>On a single box</h3>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># what updates are waiting?</span>
+dnf check-update
+
+<span class="c"># just the security fixes, if you only want those</span>
+dnf updateinfo list security
+
+<span class="c"># apply everything Satellite is offering (type y to confirm)</span>
+dnf update
+
+<span class="c"># did it change the kernel/core libs? -r = "do I need a reboot?"</span>
+dnf needs-restarting -r</div>
+
+      <h3>On Satellite (the real model)</h3>
+      <p class="plain">You don't patch each box by hand. Patching = <strong>import new content → publish a new Content View version → promote it through Dev/Test/Prod → clients pull the new errata.</strong> The export/import cycle in Section 02 <em>is</em> your patching.</p>
+      <div class="call blue"><p class="h">▸ Two models — ask which one this site uses</p><p>Some shops push patches for you from Satellite (<strong>Remote Execution</strong> or <strong>errata apply</strong>) so you never log into each box. That decides whether the box commands above are your job or automatic.</p></div>
+
+      <h3>Major upgrade: RHEL 8 → 9 with Leapp</h3>
+      <p class="plain">Jumping a whole major version (8 → 9) is <strong>not</strong> a <code class="k">dnf update</code> — you use Red Hat's <strong>Leapp</strong> tool, which upgrades in place across a special reboot. It's riskier than patching, so snapshot the VM first (Section 13).</p>
+      <div class="call red"><p class="h">✕ Snapshot before you start</p><p>In-place major upgrades can fail halfway. Take a vCenter snapshot (and/or a full backup) first so you can roll straight back.</p></div>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># 1) be on the latest 8.x minor first, then install Leapp (from Satellite)</span>
+dnf update
+dnf install -y leapp-upgrade
+
+<span class="c"># 2) pre-upgrade assessment — finds everything that will block you</span>
+leapp preupgrade
+
+<span class="c"># 3) READ the report and fix every "Inhibitor" item</span>
+less /var/log/leapp/leapp-report.txt
+
+<span class="c"># 4) once the report is clean, run the upgrade, then reboot</span>
+leapp upgrade
+reboot        <span class="c"># boots a special upgrade environment; it reboots itself again after</span></div>
+      <dl class="flags">
+        <dt>leapp preupgrade</dt><dd>Dry-run check. Writes the report to <code class="k">/var/log/leapp/leapp-report.txt</code> — nothing is changed yet.</dd>
+        <dt>Inhibitor</dt><dd>A hard blocker. The upgrade won't run until every one is resolved. High/Medium/Low are warnings only.</dd>
+        <dt>leapp upgrade</dt><dd>Does the real work — stages the RHEL 9 packages. The upgrade itself happens during the reboots.</dd>
+        <dt>--target 9.x</dt><dd>Aim at a specific minor (e.g. 9.6). Add <code class="k">--no-rhsm</code> if you're not using direct RHSM.</dd>
+      </dl>
+      <h4>The errors you'll likely hit (why an upgrade "won't go")</h4>
+      <dl class="flags">
+        <dt>Third-party packages</dt><dd>Anything not signed by Red Hat that shares a name with a RHEL package inhibits the upgrade — the #1 blocker on app boxes.</dd>
+        <dt>Disk space</dt><dd>Not enough free space on <code class="k">/</code> or <code class="k">/boot</code>. Free some first (Section 09).</dd>
+        <dt>Deprecated drivers</dt><dd>Old kernel drivers and settings (e.g. firewalld AllowZoneDrifting) get flagged — the report gives the fix.</dd>
+        <dt>Config-mgmt agents</dt><dd>Disable Puppet/Salt/Chef and agent-based tooling during the upgrade.</dd>
+      </dl>
+      <div class="call amber"><p class="h">◆ For appliance apps like Tenable Security Center</p><p>Third-party "appliance" software (Security Center, Nessus, some agents) ships packages Leapp can't vet, so an in-place 8→9 often keeps failing on those inhibitors. For these, the vendor-supported path is usually a <strong>clean RHEL 9 build → reinstall the app → restore its config/data</strong>, not Leapp. Check the vendor's RHEL 9 guidance before fighting the inhibitors — a fresh build from a template (Section 19) is often faster and cleaner. That's very likely what's biting your Security Center box.</p></div>
+    </section>
+
+    <!-- 05 USER ACCOUNTS -->
+    <section class="panel" id="p5">
+      <p class="eyebrow">Section 05</p>
+      <h2 class="title">User Accounts (local)</h2>
+      <p class="lead">How to create, change, and remove accounts on a single box — and the "no-login" service accounts you'll set up for software. Think of a user account as a name badge plus a home office (their home folder) plus a set of door keys (their groups).</p>
+
+      <div class="call blue"><p class="h">▸ Local vs IDM accounts</p><p>On an IDM-joined box, <strong>real people</strong> usually log in with IDM accounts (Section 06). The local <code class="k">useradd</code> commands here are mostly for <strong>service accounts</strong> that run software — nobody logs in as them.</p></div>
+
+      <h3>Where accounts actually live (the files to check)</h3>
+      <dl class="flags">
+        <dt>/etc/passwd</dt><dd>The list of accounts: username, ID, home folder, and login shell. (No passwords here despite the name.)</dd>
+        <dt>/etc/shadow</dt><dd>The encrypted passwords and expiry info. Root-only.</dd>
+        <dt>/etc/group</dt><dd>The groups and who's in them.</dd>
+        <dt>/home/&lt;user&gt;</dt><dd>Each person's home folder (their files, settings).</dd>
+        <dt>/etc/skel</dt><dd>The "starter kit" — its contents get copied into every new home folder you create.</dd>
+        <dt>/etc/login.defs</dt><dd>Defaults for new accounts (ID ranges, password aging).</dd>
+        <dt>/etc/sudoers.d/</dt><dd>Drop-in files that grant sudo (admin) rights. Edit with <code class="k">visudo</code>.</dd>
+      </dl>
+
+      <h3>Create a normal user (a person who logs in)</h3>
+      <div class="cmd"><button class="copy">Copy</button>useradd -m -s /bin/bash -c "<span class="ph">Jane Doe</span>" <span class="ph">jdoe</span>
+passwd <span class="ph">jdoe</span>          <span class="c"># set their first password</span></div>
+      <dl class="flags">
+        <dt>-m</dt><dd>Make their home folder (copies from /etc/skel). Without it, they have no home.</dd>
+        <dt>-s /bin/bash</dt><dd>Their login shell — the command prompt they get. bash is the normal one.</dd>
+        <dt>-c "..."</dt><dd>A comment, usually their full name.</dd>
+        <dt>-d /path</dt><dd>Use a custom home folder location instead of /home/&lt;user&gt;.</dd>
+        <dt>-G grp1,grp2</dt><dd>Add them to extra groups (e.g. <code class="k">wheel</code> for sudo rights).</dd>
+        <dt>-u 1234</dt><dd>Force a specific user ID number (rarely needed).</dd>
+        <dt>passwd jdoe</dt><dd>Sets/changes their password. They can't log in until this is done.</dd>
+      </dl>
+
+      <h3>Create a "no-login" service account</h3>
+      <p class="plain">Software (a database, an app) should run as its own account that <em>nobody can log into</em>. The trick is giving it a fake shell called <code class="k">nologin</code> — if someone tries to log in as it, the door just closes.</p>
+      <div class="cmd"><button class="copy">Copy</button>useradd -r -s /sbin/nologin -M <span class="ph">appsvc</span></div>
+      <dl class="flags">
+        <dt>-r</dt><dd>Make it a <em>system</em> account (low ID number, no aging) — the convention for service accounts.</dd>
+        <dt>-s /sbin/nologin</dt><dd>The "no shell" shell. Blocks interactive login. This is the key part.</dd>
+        <dt>-M</dt><dd>Do NOT make a home folder (a service usually doesn't need one).</dd>
+      </dl>
+
+      <h3>Change an existing user</h3>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># give someone sudo rights: add them to the wheel group</span>
+usermod -aG wheel <span class="ph">jdoe</span>
+
+<span class="c"># lock / unlock an account (block login without deleting it)</span>
+usermod -L <span class="ph">jdoe</span>     <span class="c"># lock</span>
+usermod -U <span class="ph">jdoe</span>     <span class="c"># unlock</span></div>
+      <div class="call amber"><p class="h">◆ The -a is critical</p><p><code class="k">usermod -aG</code> <u>adds</u> a group. <code class="k">usermod -G</code> without the <code class="k">-a</code> <u>replaces</u> all their groups — you'll accidentally kick them out of every other group. Always include <code class="k">-a</code> when adding.</p></div>
+
+      <h3>Delete a user</h3>
+      <div class="cmd"><button class="copy">Copy</button>userdel -r <span class="ph">jdoe</span></div>
+      <dl class="flags">
+        <dt>-r</dt><dd>Also delete their home folder and mail. Without <code class="k">-r</code>, the account is gone but their files stay behind.</dd>
+      </dl>
+
+      <h3>Groups (sets of door keys)</h3>
+      <div class="cmd"><button class="copy">Copy</button>groupadd <span class="ph">devs</span>              <span class="c"># make a new group</span>
+gpasswd -a <span class="ph">jdoe</span> <span class="ph">devs</span>      <span class="c"># add a user to it</span>
+gpasswd -d <span class="ph">jdoe</span> <span class="ph">devs</span>      <span class="c"># remove a user from it</span>
+groupdel <span class="ph">devs</span>              <span class="c"># delete the group</span></div>
+
+      <h3>Verify your work (always check after)</h3>
+      <div class="cmd"><button class="copy">Copy</button>id <span class="ph">jdoe</span>                     <span class="c"># their IDs + every group they're in</span>
+getent passwd <span class="ph">jdoe</span>          <span class="c"># their account line (works for IDM users too)</span>
+groups <span class="ph">jdoe</span>                 <span class="c"># just the group names</span>
+ls -la /home/<span class="ph">jdoe</span>            <span class="c"># confirm the home folder exists and is theirs</span></div>
+    </section>
+
+    <!-- 06 IDM / SSH -->
+    <section class="panel" id="p6">
+      <p class="eyebrow">Section 06</p>
+      <h2 class="title">IDM Accounts &amp; SSH Keys</h2>
+      <p class="lead">How login really works: you make a key pair on YOUR machine. One half is private and never leaves your laptop; the other half is public and safe to hand out.</p>
+      <div class="cmd"><button class="copy">Copy</button>ssh-keygen -t ed25519 -C "<span class="ph">ian@admin</span>"</div>
+      <dl class="flags">
+        <dt>-t ed25519</dt><dd>The key type (modern, strong, short). RSA also works if a system requires it.</dd>
+        <dt>-C "..."</dt><dd>A label so you know whose key it is.</dd>
+      </dl>
+      <p class="plain">That makes two files: <code class="k">~/.ssh/id_ed25519</code> (PRIVATE — guard it) and <code class="k">~/.ssh/id_ed25519.pub</code> (PUBLIC — upload this one).</p>
+
+      <h3>Attach your PUBLIC key to your IDM account</h3>
+      <p class="plain">Web UI: Identity → Users → you → add SSH public key. Or CLI:</p>
+      <div class="cmd"><button class="copy">Copy</button>ipa user-mod <span class="ph">ian</span> --sshpubkey="<span class="ph">ssh-ed25519 AAAAC3Nz...your_pub_key...</span>"</div>
+      <p class="plain">Now SSH into any IDM-enrolled box. The box asks IDM for your public key; your private key proves it's you. No copying keys onto each server.</p>
+      <div class="cmd"><button class="copy">Copy</button>ssh <span class="ph">ian</span>@<span class="ph">web01.example.com</span></div>
+
+      <h3>How the admin account gets created</h3>
+      <dl class="flags">
+        <dt>First admin</dt><dd>Auto-created when the server was first built with <code class="k">ipa-server-install</code> (it prompts for the admin password then). It already exists — you don't make it.</dd>
+        <dt>New admins</dt><dd>An existing admin creates the user, then adds them to the 'admins' group for full rights:</dd>
+      </dl>
+      <div class="cmd"><button class="copy">Copy</button>ipa user-add <span class="ph">jsmith</span> --first=<span class="ph">John</span> --last=<span class="ph">Smith</span>
+ipa group-add-member admins --users=<span class="ph">jsmith</span></div>
+      <div class="call green"><p class="h">✓ Old-school contrast</p><p><code class="k">ssh-copy-id</code> shoves your key into ONE box's authorized_keys file — the non-IDM way. With IDM you attach the key once to your account and it works everywhere.</p></div>
+    </section>
+
+    <!-- 07 DNS -->
+    <section class="panel" id="p7">
+      <p class="eyebrow">Section 07</p>
+      <h2 class="title">DNS &amp; BIND (how names resolve in an IDM shop)</h2>
+      <p class="lead">IDM runs its own DNS, and under the hood that DNS server IS BIND (<code class="k">named</code>). But you don't hand-edit BIND zone files here — you manage DNS through IDM, and it keeps BIND in sync.</p>
+      <div class="call amber"><p class="h">◆ Why it's built this way</p><p>Kerberos (what makes IDM logins work) demands that BOTH directions of DNS are correct, or enrollment, logins, and certificates quietly break.</p></div>
+      <dl class="flags">
+        <dt>A record</dt><dd>Forward: name → IP. e.g. web01.example.com → 10.1.1.50</dd>
+        <dt>PTR record</dt><dd>Reverse: IP → name. e.g. 10.1.1.50 → web01.example.com</dd>
+      </dl>
+      <h3>Best command — add a host AND both records in one shot</h3>
+      <div class="cmd"><button class="copy">Copy</button>ipa host-add <span class="ph">web01.example.com</span> --ip-address=<span class="ph">10.1.1.50</span></div>
+      <h3>Other useful DNS commands</h3>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># list the DNS zones IDM manages</span>
+ipa dnszone-find
+
+<span class="c"># add an A record and auto-build its reverse (PTR) at the same time</span>
+ipa dnsrecord-add <span class="ph">example.com</span> <span class="ph">web01</span> \
+  --a-rec=<span class="ph">10.1.1.50</span> --a-create-reverse
+
+<span class="c"># see all records in a zone</span>
+ipa dnsrecord-find <span class="ph">example.com</span></div>
+      <dl class="flags">
+        <dt>--a-create-reverse</dt><dd>Automatically builds the matching PTR record so you don't have to do it by hand. Big time-saver.</dd>
+      </dl>
+      <h3>Always verify BOTH directions with dig</h3>
+      <div class="cmd"><button class="copy">Copy</button>dig <span class="ph">web01.example.com</span>     <span class="c"># forward: should return the IP</span>
+dig -x <span class="ph">10.1.1.50</span>          <span class="c"># reverse: should return the name</span></div>
+      <h3>New box / new person, start to finish</h3>
+      <ol class="steps">
+        <li><code class="k">ipa host-add ... --ip-address=</code> → creates the host plus its A and PTR records.</li>
+        <li>On the new box: <code class="k">ipa-client-install</code> → joins it to IDM (Kerberos, SSH, sudo).</li>
+        <li><code class="k">dig</code> both ways to confirm the name resolves.</li>
+        <li>For a person: <code class="k">ipa user-add</code>, attach their SSH key (Section 06), then add them to the right group so they're allowed onto that host.</li>
+      </ol>
+    </section>
+
+    <!-- 08 FIREWALL/PORTS/LOGS -->
+    <section class="panel" id="p8">
+      <p class="eyebrow">Section 08</p>
+      <h2 class="title">Firewall · Ports · Logs</h2>
+      <p class="lead">The three tools that answer "why can't I reach this service?" and "what broke?" Learn to use them together.</p>
+
+      <h3>Firewall (firewalld) — the locked door</h3>
+      <p class="plain">The firewall decides which ports the outside world can reach. A service can be running perfectly and still be unreachable because its door is locked.</p>
+      <div class="cmd"><button class="copy">Copy</button>firewall-cmd --list-all                          <span class="c"># what's currently open</span>
+firewall-cmd --permanent --add-port=9090/tcp     <span class="c"># open a port (here: Cockpit)</span>
+firewall-cmd --permanent --add-service=https     <span class="c"># or open by service name</span>
+firewall-cmd --reload                            <span class="c"># apply the saved changes</span></div>
+      <dl class="flags">
+        <dt>--permanent</dt><dd>Saves the rule so it survives a reboot. Without it, the change is temporary and vanishes on restart.</dd>
+        <dt>--add-port=9090/tcp</dt><dd>Open a specific port number and protocol.</dd>
+        <dt>--add-service=https</dt><dd>Open a known service by name (firewalld knows https = 443).</dd>
+        <dt>--reload</dt><dd>Firewalld only starts using <code class="k">--permanent</code> rules after this. Easy to forget.</dd>
+      </dl>
+
+      <h3>Ports &amp; sockets — the "who's listening?" check (ss)</h3>
+      <p class="plain">A <strong>socket</strong> is just a live network connection or a service sitting and waiting for one. <code class="k">ss</code> ("socket statistics") shows you every one. You run it to answer: <em>is my service actually up and accepting connections, and on which address/port?</em></p>
+      <div class="cmd"><button class="copy">Copy</button>ss -tulpn</div>
+      <h4>What each letter means and why it's there</h4>
+      <dl class="flags">
+        <dt>-t</dt><dd>Show <strong>TCP</strong> sockets — the protocol almost all services use (web, SSH, databases).</dd>
+        <dt>-u</dt><dd>Show <strong>UDP</strong> too — needed for things like DNS (port 53).</dd>
+        <dt>-l</dt><dd>Only show <strong>listening</strong> sockets — services waiting for connections. This is the key filter: it answers "what's running and open?"</dd>
+        <dt>-p</dt><dd>Show the <strong>program</strong> (process) that owns each port — so you know <em>what</em> is listening.</dd>
+        <dt>-n</dt><dd>Show <strong>numbers</strong>, not names (22 instead of "ssh"). Faster and avoids confusion.</dd>
+      </dl>
+      <h4>How to read the output</h4>
+      <p class="plain">The columns that matter are the <strong>Local Address:Port</strong> (where it's listening) and the <strong>process name</strong> at the end. The address tells you <em>who can reach it</em>:</p>
+      <dl class="flags">
+        <dt>0.0.0.0:443</dt><dd>Listening on <strong>all</strong> interfaces — reachable from other machines. (<code class="k">*</code> or <code class="k">[::]</code> mean the same for "everywhere".)</dd>
+        <dt>127.0.0.1:443</dt><dd>Listening on <strong>localhost only</strong> — only this box can reach it. Outside connections will fail even with the firewall open.</dd>
+      </dl>
+      <h4>What to DO once you've run it — the decision tree</h4>
+      <dl class="flags">
+        <dt>Port missing</dt><dd>Your service's port isn't in the list → the service isn't running → start it: <code class="k">systemctl start &lt;svc&gt;</code>, then check its logs below.</dd>
+        <dt>On 127.0.0.1</dt><dd>It's bound to localhost only → fix the app's config to listen on <code class="k">0.0.0.0</code> or the real IP, then restart it.</dd>
+        <dt>On 0.0.0.0 but still unreachable</dt><dd>The service is fine → the <strong>firewall</strong> is blocking it → open the port with <code class="k">firewall-cmd</code> above.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ The one-line rule</p><p><strong>Service listening (ss) + port open (firewall) = reachable.</strong> If a connection fails, one of those two is missing. Check ss first, then the firewall.</p></div>
+
+      <h3>Logs — finding out what broke (journalctl)</h3>
+      <div class="cmd"><button class="copy">Copy</button>journalctl -u <span class="ph">sssd</span>            <span class="c"># all logs for ONE service (swap the name)</span>
+journalctl -xe               <span class="c"># jump to the newest errors, with context</span>
+journalctl --since "15 min ago"   <span class="c"># only recent entries</span>
+journalctl -f                <span class="c"># live tail — watch messages appear as you test</span></div>
+      <dl class="flags">
+        <dt>-u &lt;svc&gt;</dt><dd>Filter to one service — the fastest way to see why it failed.</dd>
+        <dt>-x</dt><dd>Add extra explanation text to entries.</dd>
+        <dt>-e</dt><dd>Jump to the end (newest).</dd>
+        <dt>-f</dt><dd>Follow live — great while you reproduce a problem in another window.</dd>
+      </dl>
+      <h4>Old-style files &amp; app logs worth knowing</h4>
+      <dl class="flags">
+        <dt>/var/log/secure</dt><dd>Login, SSH, and sudo activity (who got in, who failed).</dd>
+        <dt>/var/log/messages</dt><dd>General catch-all system messages.</dd>
+        <dt>Satellite</dt><dd><code class="k">/var/log/foreman/production.log</code> · run <code class="k">satellite-maintain health check</code></dd>
+        <dt>IDM</dt><dd><code class="k">ipactl status</code> · <code class="k">/var/log/dirsrv/</code> · <code class="k">/var/log/krb5kdc.log</code></dd>
+      </dl>
+    </section>
+
+    <!-- 09 STORAGE -->
+    <section class="panel" id="p9">
+      <p class="eyebrow">Section 09</p>
+      <h2 class="title">Storage: Add a vCenter Disk &amp; Grow the Space (LVM)</h2>
+      <p class="lead">LVM is three stacked layers. Learn the stack and the "grow" flow and you're set. (For the vCenter clicks that come first, see Section 10.)</p>
+      <dl class="flags">
+        <dt>PV</dt><dd>Physical Volume — a raw disk, prepped for LVM. The bottom layer.</dd>
+        <dt>VG</dt><dd>Volume Group — a POOL made of one or more PVs. Your bucket of free space.</dd>
+        <dt>LV</dt><dd>Logical Volume — a SLICE carved from the pool. It gets a filesystem and a mount point.</dd>
+      </dl>
+      <p class="plain">Flow to remember: <strong>new disk → PV → add to VG → grow LV → grow filesystem.</strong></p>
+
+      <h3>Full walkthrough: give a RHEL box more space from vCenter</h3>
+      <ol class="steps">
+        <li><strong>In vCenter:</strong> add a new virtual disk to the VM, or expand an existing one (Section 10 has the exact clicks). The disk comes from a <em>datastore</em> — the shared storage pool the VMs live on.</li>
+        <li><strong>Make Linux notice it</strong> (it won't see the change until you rescan):
+          <div class="cmd"><button class="copy">Copy</button><span class="c"># brand-new disk — scans every SCSI bus so it's found wherever it landed:</span>
+for h in /sys/class/scsi_host/host*/scan; do echo "- - -" > "$h"; done
+<span class="c"># (or, if the sg3_utils package is installed:)  rescan-scsi-bus.sh</span>
+
+<span class="c"># you GREW an existing disk instead? rescan just that disk:</span>
+echo 1 > /sys/block/<span class="ph">sdb</span>/device/rescan
+
+lsblk        <span class="c"># confirm the new/bigger disk now shows up</span></div></li>
+        <li><strong>Prep the disk for LVM (make it a PV):</strong>
+          <div class="cmd"><button class="copy">Copy</button>pvcreate /dev/<span class="ph">sdb</span></div></li>
+        <li><strong>Add it to the pool (VG):</strong>
+          <div class="cmd"><button class="copy">Copy</button>vgextend <span class="ph">datavg</span> /dev/<span class="ph">sdb</span>        <span class="c"># add to an existing pool</span>
+<span class="c"># or, for a brand-new pool:  vgcreate datavg /dev/sdb</span></div></li>
+        <li><strong>Grow the slice AND its filesystem in one shot</strong> — the <code class="k">-r</code> flag resizes the filesystem for you (works for XFS and ext4):
+          <div class="cmd"><button class="copy">Copy</button>lvextend -r -l +100%FREE /dev/<span class="ph">datavg</span>/<span class="ph">datalv</span>   <span class="c"># use all the new space</span>
+<span class="c"># or a set amount:  lvextend -r -L +50G /dev/datavg/datalv</span></div></li>
+        <li><strong>Confirm it worked:</strong>
+          <div class="cmd"><button class="copy">Copy</button>df -h        <span class="c"># the mount should now show the bigger size</span></div></li>
+      </ol>
+      <dl class="flags">
+        <dt>-r</dt><dd>Resize the filesystem together with the volume — saves a second command.</dd>
+        <dt>-l +100%FREE</dt><dd>Use ALL free space in the pool.</dd>
+        <dt>-L +50G</dt><dd>Use a specific amount instead.</dd>
+      </dl>
+      <div class="call amber"><p class="h">◆ If you ever grow by hand</p><p>XFS (RHEL's default) grows with <code class="k">xfs_growfs &lt;mountpoint&gt;</code> and can only GROW, never shrink. ext4 uses <code class="k">resize2fs &lt;device&gt;</code>. Check your type first with <code class="k">df -T</code>.</p></div>
+
+      <h3>Tarballs, zipping &amp; the right way to free space</h3>
+      <p class="plain">A <strong>tarball</strong> is many files/folders bundled into one file — like packing a box. <code class="k">tar</code> by itself just bundles; add gzip to also shrink it. The result is a <code class="k">.tar.gz</code> (a packed, compressed box).</p>
+      <div class="cmd"><button class="copy">Copy</button>tar czf <span class="ph">backup.tar.gz</span> /path/to/<span class="ph">folder</span>   <span class="c"># c=create z=gzip f=file</span>
+tar tzf backup.tar.gz                      <span class="c"># t=list what's inside (peek without extracting)</span>
+tar xzf backup.tar.gz                      <span class="c"># x=extract it back out</span></div>
+      <dl class="flags">
+        <dt>c / x / t</dt><dd>Create / eXtract / lisT — the three things you do with an archive.</dd>
+        <dt>z</dt><dd>Also gzip-compress it (shrinks it). Leave it off for a plain, uncompressed bundle.</dd>
+        <dt>f name</dt><dd>The archive filename to use.</dd>
+      </dl>
+      <p class="plain">A single file, or a cross-platform <code class="k">.zip</code> instead:</p>
+      <div class="cmd"><button class="copy">Copy</button>gzip <span class="ph">big.log</span>          <span class="c"># shrinks big.log -> big.log.gz (removes the original)</span>
+gunzip big.log.gz     <span class="c"># back to big.log</span>
+zip -r <span class="ph">archive.zip</span> <span class="ph">folder</span>   <span class="c"># make a .zip (Windows-friendly)</span>
+unzip archive.zip</div>
+
+      <h4>Space is full — is deleting really the best move?</h4>
+      <p class="plain">First, find the hog — this is your go-to sequence:</p>
+      <div class="cmd"><button class="copy">Copy</button>du -sh /*                      <span class="c"># size of each top-level folder</span>
+du -sh /var/*                 <span class="c"># then drill into the big one</span>
+du -xh / | sort -rh | head    <span class="c"># biggest items overall, staying on one filesystem</span></div>
+      <p class="plain">Now decide. Deleting frees space instantly, but it's the <em>worst</em> option if the data might matter — and in a classified or compliance shop, logs and data often <strong>have</strong> to be kept. Better choices, in order:</p>
+      <dl class="flags">
+        <dt>Compress it</dt><dd>A text log can shrink 80–90%. <code class="k">gzip big.log</code> keeps the data but reclaims most of the space. Best when you must retain it.</dd>
+        <dt>Move it</dt><dd>If a whole folder is the problem, move it to a bigger volume and leave a symlink behind so everything still finds it (Section 15): <code class="k">mv /var/big /data/big &amp;&amp; ln -s /data/big /var/big</code></dd>
+        <dt>Grow the volume</dt><dd>If it's real, growing data (like <code class="k">/var/lib/pulp</code>), add space with LVM (top of this tab) rather than fighting it.</dd>
+        <dt>Delete — last</dt><dd>Only for true junk you're certain about. And remember: if a process still holds a deleted file open, the space won't come back until you restart it (<code class="k">lsof +L1</code>).</dd>
+      </dl>
+      <p class="plain">Whatever you choose, confirm it worked with <code class="k">df -h</code> afterward.</p>
+
+      <h3>Moving, copying &amp; removing files (and the rm -rf warning)</h3>
+      <p class="plain"><strong>"Recursive" just means "and everything inside it, all the way down."</strong> A folder holds other files and folders, so any command that acts on a whole folder tree needs a recursive flag (<code class="k">-r</code>). That one idea explains all the flags below.</p>
+
+      <h4>Copy — cp</h4>
+      <div class="cmd"><button class="copy">Copy</button>cp <span class="ph">file.txt</span> /path/to/dest/        <span class="c"># copy one file</span>
+cp -r <span class="ph">folder</span> /path/to/dest/         <span class="c"># -r = copy a whole folder (needed for directories)</span>
+cp -a <span class="ph">folder</span> /path/to/dest/         <span class="c"># -a = archive: copy AND keep permissions, timestamps, links</span>
+cp -i <span class="ph">file.txt</span> /path/to/dest/        <span class="c"># -i = ask before overwriting an existing file</span></div>
+      <dl class="flags">
+        <dt>-r / -R</dt><dd>Recursive — required to copy a directory and its contents. Without it, cp refuses on a folder.</dd>
+        <dt>-a</dt><dd>Archive — preserves ownership, permissions, timestamps, and links. Use it for backups/migrations.</dd>
+        <dt>-i</dt><dd>Interactive — prompts before clobbering an existing file.</dd>
+      </dl>
+
+      <h4>Move / rename — mv</h4>
+      <div class="cmd"><button class="copy">Copy</button>mv <span class="ph">old.txt</span> <span class="ph">new.txt</span>              <span class="c"># rename a file</span>
+mv <span class="ph">file.txt</span> /path/to/dest/          <span class="c"># move a file</span>
+mv <span class="ph">folder</span> /path/to/dest/            <span class="c"># move a whole folder — NO -r needed</span></div>
+      <p class="plain"><strong>Why mv needs no -r:</strong> on the same drive it just re-points the name (instant, even for a huge folder). Moving across drives, it copies then deletes for you. The same command renames and moves — there's no separate "rename."</p>
+
+      <h4>Remove — rm (the dangerous one)</h4>
+      <div class="cmd"><button class="copy">Copy</button>rm <span class="ph">file.txt</span>            <span class="c"># delete one file</span>
+rm -r <span class="ph">folder</span>            <span class="c"># -r = delete a folder and everything in it</span>
+rm -rf <span class="ph">folder</span>           <span class="c"># -r + -f = recursive, forced, NO prompts, NO undo</span></div>
+      <dl class="flags">
+        <dt>-r</dt><dd>Recursive — required to delete a directory (rm alone won't touch folders).</dd>
+        <dt>-f</dt><dd>Force — skips every "are you sure?" prompt and ignores missing-file errors.</dd>
+        <dt>-i</dt><dd>Interactive — asks before each delete. Add it whenever you're not 100% sure.</dd>
+      </dl>
+      <div class="call red"><p class="h">✕ Why rm -rf can ruin your day</p><p>There is <strong>no recycle bin on the Linux command line</strong> — <code class="k">rm -rf</code> erases an entire tree instantly and permanently, with no confirmation. The classic disasters are a stray space or an empty variable: <code class="k">rm -rf / home/ian</code> (note the space before <code class="k">home</code>) or <code class="k">rm -rf "$DIR"/</code> when <code class="k">$DIR</code> is empty — both try to wipe the whole system. As root, that's catastrophic.</p></div>
+      <h4>Safe habits before you rm -rf</h4>
+      <ul class="tight">
+        <li><strong>Look first:</strong> run <code class="k">ls -la &lt;path&gt;</code> to see exactly what you're about to delete.</li>
+        <li><strong>Check variables:</strong> if the path uses <code class="k">$VAR</code>, <code class="k">echo</code> it first — an empty variable turns your command into a disaster.</li>
+        <li><strong>Quarantine instead of delete:</strong> <code class="k">mv</code> the folder to <code class="k">/tmp/quarantine/</code>, confirm nothing breaks, then delete it later. Reversible.</li>
+        <li><strong>Use -i when unsure:</strong> <code class="k">rm -ri &lt;folder&gt;</code> prompts for each item.</li>
+        <li><strong>Never blind-run rm -rf as root</strong> on a path you didn't just verify.</li>
+      </ul>
+      <p class="plain"><strong>Why you DO use it:</strong> clearing a whole tree of genuine junk — old build output, a temp directory, a finished export — legitimately needs <code class="k">-r</code>, and <code class="k">-f</code> saves you from a thousand prompts when you're certain.</p>
+
+      <h4>Big moves &amp; migrations — rsync</h4>
+      <p class="plain">For moving or copying large directory trees (especially to another drive — remember Section 15's "move it and symlink back"), <code class="k">rsync</code> beats cp: it shows progress, resumes if interrupted, and preserves everything.</p>
+      <div class="cmd"><button class="copy">Copy</button>rsync -av <span class="ph">/var/big/</span> <span class="ph">/data/big/</span>        <span class="c"># -a keep everything, -v show files</span>
+rsync -av --progress <span class="ph">src/</span> <span class="ph">dest/</span>       <span class="c"># add a live progress bar</span>
+<span class="c"># after verifying the copy, remove the source and symlink it back:</span>
+rm -rf /var/big &amp;&amp; ln -s /data/big /var/big</div>
+      <dl class="flags">
+        <dt>-a</dt><dd>Archive — preserve permissions, timestamps, ownership, and links (the everyday default).</dd>
+        <dt>-v</dt><dd>Verbose — list what's being transferred.</dd>
+        <dt>trailing /</dt><dd>On the source, <code class="k">src/</code> means "the contents of src"; <code class="k">src</code> (no slash) means "the folder src itself." This trips people up — be deliberate.</dd>
+      </dl>
+    </section>
+
+    <!-- 10 VCENTER -->
+    <section class="panel" id="p10">
+      <p class="eyebrow">Section 10</p>
+      <h2 class="title">vCenter: the Layer Under the OS</h2>
+      <p class="lead">vCenter is the control panel for the virtual machines. Think of it as the box's "hardware" and power buttons. When the operating system can't help you — no SSH, no room to add a disk, the box won't boot — vCenter is where you go.</p>
+      <div class="call blue"><p class="h">▸ Your environment</p><p>Log into your site's vCenter for the <strong><span class="ph">FMLBCU</span></strong> environment at <code class="k">https://<span class="ph">vcenter-fmlbcu.example.com</span>/ui</code> with your SSO/AD account. The environment name is just the label for this vCenter and its inventory — everything below happens inside it.</p></div>
+
+      <h3>The console — your lifeline when SSH is dead</h3>
+      <p class="plain">If you can't SSH in, you can still get a screen and keyboard through vCenter, exactly as if you were standing at the machine.</p>
+      <ol class="steps">
+        <li>Find the VM in the inventory list on the left.</li>
+        <li>Right-click it → <strong>Launch Web Console</strong> (or Launch Remote Console).</li>
+        <li>You now have the login screen — check the network, restart a service, read the error on screen.</li>
+      </ol>
+      <div class="call blue"><p class="h">▸ Why this matters</p><p>Half of "the box is down" turns out to be a network or firewall problem that locked out SSH. The console still works because it doesn't use the network — it's a direct pipe to the VM.</p></div>
+
+      <h3>Add or grow a disk (feeding Section 09)</h3>
+      <ol class="steps">
+        <li>Right-click the VM → <strong>Edit Settings</strong>.</li>
+        <li><strong>New disk:</strong> Add New Device → Hard Disk → set the size and pick the <strong>datastore</strong> (the shared storage it comes from).</li>
+        <li><strong>Bigger disk:</strong> expand the size field on the existing hard disk.</li>
+        <li>Save, then hop to the RHEL box and <strong>rescan</strong> (Section 09) so Linux sees the change.</li>
+      </ol>
+
+      <h3>Power, CPU, and memory</h3>
+      <dl class="flags">
+        <dt>Restart Guest OS</dt><dd>A <em>graceful</em> reboot (asks the OS nicely). Always try this before a hard reset.</dd>
+        <dt>Power Off</dt><dd>A hard "pull the plug." Last resort — can cause filesystem damage.</dd>
+        <dt>Edit Settings → CPU / Memory</dt><dd>Add cores or RAM. Usually needs the VM powered off unless "hot-add" was enabled when it was built.</dd>
+        <dt>Mount an ISO</dt><dd>Edit Settings → CD/DVD drive → Datastore ISO — how you attach install or rescue media.</dd>
+      </dl>
+
+      <h3>Is the box starved? Check the hypervisor's view</h3>
+      <p class="plain">Sometimes the OS looks fine but the VM is being throttled underneath. Click the VM → <strong>Monitor</strong> tab → <strong>Performance</strong> charts to see real CPU, memory, disk, and network usage from vCenter's side. High "CPU ready" or memory ballooning means the host is overcommitted — a problem no amount of Linux tuning will fix.</p>
+      <h3>Create an admin group, set permissions &amp; change passwords</h3>
+      <p class="plain">vCenter access is "who (a user/group) can do what (a role) on which object." You grant admin rights by putting people in a group and giving that group a role on an inventory object.</p>
+      <h4>1. Make an admin group and add members</h4>
+      <ol class="steps">
+        <li>Top-left menu → <strong>Administration</strong> → <strong>Single Sign On</strong> → <strong>Users and Groups</strong>.</li>
+        <li><strong>Groups</strong> tab → <strong>Add</strong>. Name it e.g. <code class="k">FMLBCU-Admins</code>, save.</li>
+        <li>Open the group → <strong>Add Members</strong> → search your SSO/AD users → add them.</li>
+      </ol>
+      <h4>2. Give the group permissions (a role on an object)</h4>
+      <ol class="steps">
+        <li>Go to the object they should control — the top <strong>vCenter</strong> object for full admin, or a specific folder/cluster to scope them.</li>
+        <li><strong>Permissions</strong> tab → <strong>+ Add</strong>.</li>
+        <li>Pick your group (<code class="k">FMLBCU-Admins</code>), set <strong>Role = Administrator</strong> (or a lesser built-in role), and check <strong>Propagate to children</strong> so it applies down the tree.</li>
+        <li>OK — they now have that role everywhere below that object.</li>
+      </ol>
+      <h4>3. Change a password</h4>
+      <dl class="flags">
+        <dt>Your own</dt><dd>Top-right — click your name → <strong>Change Password</strong>.</dd>
+        <dt>An SSO user's</dt><dd>Administration → Single Sign On → Users and Groups → <strong>Users</strong> → pick the user (vsphere.local domain) → <strong>Edit</strong> / <strong>Reset Password</strong>. AD-domain users change their password in Active Directory, not here.</dd>
+      </dl>
+      <div class="call amber"><p class="h">◆ Least privilege</p><p>Give Administrator only to real admins. For everyone else, scope a lesser role to just the folder/cluster they need — don't hand out full admin at the vCenter root by default.</p></div>
+
+      <h3>Templates: access &amp; configure</h3>
+      <p class="plain">A <strong>template</strong> is a master copy of a VM you stamp new VMs from. You can't power on a template — that keeps the master pristine. (Building the RHEL image that becomes a template is Section 19.)</p>
+      <h4>Find your templates</h4>
+      <ol class="steps">
+        <li>Switch the inventory to the <strong>VMs and Templates</strong> view — templates show with a distinct icon.</li>
+        <li>Many shops keep them in a dedicated <code class="k">Templates</code> folder.</li>
+      </ol>
+      <h4>Turn a VM into a template (and back)</h4>
+      <dl class="flags">
+        <dt>Convert to Template</dt><dd>Right-click a prepared VM → <strong>Template</strong> → <strong>Convert to Template</strong>. The VM becomes a master (can't run).</dd>
+        <dt>Clone to Template</dt><dd>Right-click → <strong>Clone</strong> → <strong>Clone to Template</strong> — keeps the original VM and makes a template copy.</dd>
+        <dt>Update it later</dt><dd>Right-click the template → <strong>Convert to Virtual Machine</strong>, power on, patch it, then convert it back.</dd>
+      </dl>
+      <h4>Deploy a new server from a template</h4>
+      <ol class="steps">
+        <li>Right-click the template → <strong>New VM from This Template</strong>.</li>
+        <li>Set the name, folder, host/cluster, and datastore.</li>
+        <li>Apply a <strong>Guest Customization Spec</strong> (below) so the new box gets its own hostname/IP.</li>
+        <li>Finish → power on → it boots with your baseline already in place.</li>
+      </ol>
+      <h4>Customization specs (so clones aren't identical)</h4>
+      <p class="plain">Menu → <strong>Policies and Profiles</strong> → <strong>VM Customization Specifications</strong> → create a Linux spec that sets hostname, network/IP, DNS, and domain. Apply it at deploy time and every new VM comes up unique and ready — no manual reconfig.</p>
+
+      <div class="call amber"><p class="h">◆ vCenter's role, in one line</p><p>The OS handles software; vCenter handles the virtual hardware, the console, the power, and the disks. When you're stuck at the OS level, drop down a layer to vCenter.</p></div>
+    </section>
+
+    <!-- 11 COCKPIT -->
+    <section class="panel" id="p11">
+      <p class="eyebrow">Section 11</p>
+      <h2 class="title">Cockpit: Manage a Box by Clicking</h2>
+      <p class="lead">Cockpit is a web dashboard for a single Linux box — services, logs, storage, networking, and users, all with buttons instead of commands. Great for fast triage and for anything you'd rather not do blind on the command line.</p>
+
+      <h3>How to get in</h3>
+      <ol class="steps">
+        <li>Make sure it's running and the port is open (one-time):
+          <div class="cmd"><button class="copy">Copy</button>systemctl enable --now cockpit.socket
+firewall-cmd --permanent --add-port=9090/tcp &amp;&amp; firewall-cmd --reload</div></li>
+        <li>In a browser, go to <code class="k">https://<span class="ph">web01.example.com</span>:9090</code> (or the IP).</li>
+        <li>Log in with your normal Linux/IDM username and password.</li>
+        <li>Tick <strong>"Reuse my password for privileged tasks"</strong> so you can make admin changes.</li>
+      </ol>
+
+      <h3>Managing more than one server from one screen</h3>
+      <p class="plain">Cockpit can hop to other hosts: use the host switcher at the top-left to add a server by name and jump between them, so you're not opening a new tab per box.</p>
+
+      <h3>The first thing you do</h3>
+      <p class="plain">Open the <strong>Overview</strong> page. It shows health, CPU/memory load, and any alerts at a glance — your 10-second "is this box OK?" check.</p>
+
+      <h3>The tabs you'll actually use</h3>
+      <dl class="flags">
+        <dt>Overview</dt><dd>Health, load, hardware info, and pending alerts. Start here.</dd>
+        <dt>Logs</dt><dd>The journal (Section 08) with clickable filters — read errors without typing.</dd>
+        <dt>Storage</dt><dd>Disks, filesystems, and LVM. You can grow a volume here by clicking — the GUI version of Section 09.</dd>
+        <dt>Networking</dt><dd>Interfaces, IPs, and the firewall — open a port with a checkbox instead of firewall-cmd.</dd>
+        <dt>Services</dt><dd>Start, stop, restart, and enable services (systemd) with buttons.</dd>
+        <dt>Accounts</dt><dd>Create users, set passwords, and add SSH keys — the GUI version of Section 05.</dd>
+        <dt>Software Updates</dt><dd>See and apply available patches (ties into Section 04).</dd>
+        <dt>Terminal</dt><dd>A full command-line shell right in the browser — handy when you're already in Cockpit.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ When Cockpit shines</p><p>Quick triage, storage and network changes you want to see visually, and handing a junior a safe place to look without full shell access. For bulk or scripted work, the command line still wins.</p></div>
+    </section>
+
+    <!-- 12 COMMON ISSUES -->
+    <section class="panel" id="p12">
+      <p class="eyebrow">Section 12</p>
+      <h2 class="title">Common Issues &amp; How to Fix Them</h2>
+      <p class="lead">Real scenarios you'll hit on-site. Each one: the <strong>symptom</strong>, the <strong>commands to check</strong> (in order), and the <strong>fix</strong>. Work top to bottom — the checks are ordered from most to least likely.</p>
+
+      <div class="issue">
+        <h4>1. "The disk is full"</h4>
+        <p class="sym">Symptom: writes fail, a service won't start, or you see "No space left on device."</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>df -h                              <span class="c"># which mount is at 100%?</span>
+du -xh /var | sort -rh | head      <span class="c"># what's eating that mount? (swap /var)</span>
+df -i                              <span class="c"># sometimes you're out of INODES, not space</span></div>
+        <p class="lbl fix">Fix</p>
+        <div class="cmd"><button class="copy">Copy</button>journalctl --vacuum-size=500M      <span class="c"># if logs are the hog, trim them</span>
+<span class="c"># still full after deleting? a process may be holding a deleted file open:</span>
+lsof +L1 | head                    <span class="c"># find deleted-but-open files; restart that service</span></div>
+        <p class="plain">If it's real data (like Satellite content in <code class="k">/var/lib/pulp</code>), don't delete — <strong>grow the volume</strong> using Section 09.</p>
+      </div>
+
+      <div class="issue">
+        <h4>2. "A service won't start"</h4>
+        <p class="sym">Symptom: an app or daemon is down, or crashes right after starting.</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>systemctl status <span class="ph">httpd</span>          <span class="c"># is it running? what's the last error line?</span>
+journalctl -xeu <span class="ph">httpd</span>           <span class="c"># full recent logs for just this service</span>
+ss -tulpn | grep <span class="ph">80</span>            <span class="c"># is something ELSE already on its port?</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Read the error at the bottom of <code class="k">status</code> — it usually names the problem (bad config line, missing file, port in use). Fix that, then <code class="k">systemctl restart <span class="ph">httpd</span></code>. If a config was edited, test it first if the service offers a check (e.g. <code class="k">httpd -t</code>).</p>
+      </div>
+
+      <div class="issue">
+        <h4>3. "I can't SSH into the box"</h4>
+        <p class="sym">Symptom: your connection times out or is refused.</p>
+        <p class="lbl">Check (from the vCenter console — Section 10)</p>
+        <div class="cmd"><button class="copy">Copy</button>ip a                               <span class="c"># does it have an IP? is the network up?</span>
+systemctl status sshd              <span class="c"># is the SSH service even running?</span>
+ss -tulpn | grep 22                <span class="c"># is it listening on port 22?</span>
+firewall-cmd --list-all            <span class="c"># is port 22 / the ssh service open?</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">No IP → network problem (check the interface / vCenter network settings). sshd down → <code class="k">systemctl start sshd</code>. Listening but blocked → open it: <code class="k">firewall-cmd --permanent --add-service=ssh &amp;&amp; firewall-cmd --reload</code>.</p>
+      </div>
+
+      <div class="issue">
+        <h4>4. "The box is slow / high load"</h4>
+        <p class="sym">Symptom: everything drags; load average is high.</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>uptime                             <span class="c"># load average — is it higher than your CPU count?</span>
+top                                <span class="c"># press Shift+P (CPU) or Shift+M (memory) to sort</span>
+free -h                            <span class="c"># is memory exhausted? is swap thrashing?</span>
+ps aux --sort=-%cpu | head         <span class="c"># the top CPU-hungry processes</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Identify the hog and decide: restart it, kill it (<code class="k">kill &lt;PID&gt;</code>), or add resources. If memory is the issue, check the journal for the <strong>OOM killer</strong> (<code class="k">journalctl -k | grep -i oom</code>). If the host itself is overcommitted, confirm in vCenter's Monitor charts (Section 10) and add CPU/RAM there.</p>
+      </div>
+
+      <div class="issue">
+        <h4>5. "Names won't resolve / DNS is broken"</h4>
+        <p class="sym">Symptom: <code class="k">ping google-style</code> names fail, or Kerberos/IDM logins break.</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>cat /etc/resolv.conf               <span class="c"># which DNS server is it using?</span>
+dig <span class="ph">web01.example.com</span>          <span class="c"># does a lookup work at all?</span>
+resolvectl status                  <span class="c"># the active DNS config per interface</span>
+ping -c2 <span class="ph">10.1.1.10</span>            <span class="c"># can you even reach the DNS/IDM server?</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Wrong/missing DNS server → fix it (on IDM boxes it should point at the IDM server). Can't reach the DNS server → network/firewall issue. Records missing → add them in IDM (Section 07).</p>
+      </div>
+
+      <div class="issue">
+        <h4>6. "IDM login fails but the password is right"</h4>
+        <p class="sym">Symptom: your IDM account is rejected on one box; often a clock or cache problem.</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>timedatectl                        <span class="c"># is the clock correct + synced?</span>
+chronyc sources                    <span class="c"># is time sync actually working?</span>
+systemctl status sssd              <span class="c"># the service that talks to IDM</span>
+id <span class="ph">jsmith</span>                     <span class="c"># does the box even see the IDM user?</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Kerberos rejects logins if the clock is off by more than ~5 minutes — fix time first (<code class="k">systemctl restart chronyd</code>). If the user isn't found, clear the cache and restart: <code class="k">sss_cache -E &amp;&amp; systemctl restart sssd</code>. Confirm DNS (Issue 5) since IDM depends on it.</p>
+      </div>
+
+      <div class="issue">
+        <h4>7. "Filesystem went read-only"</h4>
+        <p class="sym">Symptom: you suddenly can't write anywhere; apps error on save.</p>
+        <p class="lbl">Check</p>
+        <div class="cmd"><button class="copy">Copy</button>dmesg | tail -40                   <span class="c"># look for disk I/O errors near the bottom</span>
+mount | grep ' ro,'                <span class="c"># which mount flipped to read-only</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">This usually means the underlying disk had errors — check the datastore/disk health in vCenter (Section 10). After confirming the disk is healthy, a reboot often remounts clean; a damaged filesystem may need <code class="k">fsck</code> on the unmounted volume (use the vCenter console for that).</p>
+      </div>
+
+      <h3>vCenter-side issues</h3>
+
+      <div class="issue">
+        <h4>8. A vCenter alarm is red or yellow</h4>
+        <p class="sym">Symptom: a red/yellow triangle on a VM, host, or datastore, or the alarm bell is lit.</p>
+        <p class="lbl">Check</p>
+        <p class="plain">Click the object → <strong>Monitor → Issues and Alarms → Triggered Alarms</strong> and read what actually tripped. The usual suspects:</p>
+        <dl class="flags">
+          <dt>Datastore usage</dt><dd>Datastore over its % threshold → free space or expand it, and clean up old snapshots (they live on the datastore).</dd>
+          <dt>VM CPU/memory</dt><dd>Sustained high usage → Monitor → Performance; right-size the VM or find the hog inside the OS (Issue 4).</dd>
+          <dt>Consolidation needed</dt><dd>Leftover snapshot files → right-click the VM → Snapshots → <strong>Consolidate</strong>.</dd>
+          <dt>Host / uplink lost</dt><dd>A host or its network dropped → a host-level problem; check the ESXi host and its uplinks.</dd>
+        </dl>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Fix the <em>underlying cause first</em>. Then clear the alarm: right-click it → <strong>Acknowledge</strong> ("I'm on it"), and once it's actually resolved, <strong>Reset to Green</strong>. Never reset to green without fixing it — that just hides the warning.</p>
+      </div>
+
+      <div class="issue">
+        <h4>9. Can't reach a box at all — get in and power it on</h4>
+        <p class="sym">Symptom: no SSH, no ping, and you're not even sure it's powered on.</p>
+        <p class="lbl">Check &amp; get in — work down this ladder</p>
+        <dl class="flags">
+          <dt>1. vCenter console</dt><dd>Right-click the VM → <strong>Launch Web Console</strong>. It works without the network. If it's simply off, right-click → <strong>Power → Power On</strong>, then watch it boot in the console.</dd>
+          <dt>2. vCenter down too?</dt><dd>Go straight to the ESXi host that runs the VM — the <strong>Host Client</strong> at <code class="k">https://<span class="ph">esxi-host</span>/ui</code>. You can power on and console the VM from there without vCenter.</dd>
+          <dt>3. Host Client also out?</dt><dd>SSH to the ESXi host itself and power it on from the shell (commands below).</dd>
+        </dl>
+        <div class="cmd"><button class="copy">Copy</button>vim-cmd vmsvc/getallvms                 <span class="c"># list VMs + their IDs on this host</span>
+vim-cmd vmsvc/power.getstate <span class="ph">VMID</span>       <span class="c"># is it on or off?</span>
+vim-cmd vmsvc/power.on <span class="ph">VMID</span>             <span class="c"># power it on</span></div>
+        <p class="lbl fix">Fix</p>
+        <p class="plain">Once you're on the console: if the OS is up but SSH was dead, fix it right there (Issue 3 — network, sshd, firewall). If it won't boot, read the screen for the error (bad <code class="k">/etc/fstab</code>, a failed filesystem) and recover from the console.</p>
+      </div>
+
+      <div class="call blue"><p class="h">▸ The universal first three</p><p>When something's wrong and you're not sure where to start: <code class="k">systemctl status &lt;svc&gt;</code>, <code class="k">journalctl -xe</code>, and <code class="k">df -h</code>. Those three catch the majority of on-site problems.</p></div>
+    </section>
+
+    <!-- 13 BACKUP/RESTORE -->
+    <section class="panel" id="p13">
+      <p class="eyebrow">Section 13</p>
+      <h2 class="title">Backup &amp; Restore (Veeam · vCenter · Satellite)</h2>
+      <p class="lead">The safe order for patching a VM and getting it back if it breaks. Two safety nets: a <strong>snapshot</strong> (quick undo, delete after) and a <strong>Veeam backup</strong> (the real one you keep).</p>
+
+      <h3>The order of operations</h3>
+      <ol class="steps">
+        <li><strong>Confirm a good Veeam backup exists</strong> — your real, keepable safety net.</li>
+        <li><strong>Take a vCenter snapshot right before patching</strong> — your instant undo for the next hour.</li>
+        <li><strong>Patch from Satellite</strong> (Section 04).</li>
+        <li><strong>Verify the box is healthy</strong> — services up, logins work, no errors.</li>
+        <li><strong>Healthy → delete the snapshot. Broken → roll back.</strong> Never leave a snapshot sitting around.</li>
+      </ol>
+      <div class="call amber"><p class="h">◆ Snapshot ≠ backup</p><p>A snapshot is a temporary undo point that <em>grows</em> the longer it lives and will hurt performance and fill your datastore if forgotten. Use it for the patch window, then delete it. Veeam is the backup you keep.</p></div>
+
+      <h3>Back up in Veeam</h3>
+      <p class="plain">A Veeam job quietly asks vCenter for a snapshot, copies the VM's data out, then removes its snapshot — leaving a full VM image in the repository. Confirm it's good <em>before</em> you touch anything:</p>
+      <ol class="steps">
+        <li>Open the <strong>Veeam Backup &amp; Replication</strong> console → <strong>Home</strong> → <strong>Jobs</strong> (or <strong>Backups</strong>).</li>
+        <li>Find this VM's job; look for a green <strong>Success</strong> on the last run. Red (failed) means no safety net — fix that first.</li>
+        <li>To force a fresh one: right-click the VM → <strong>Start / Active Full</strong>, and wait for Success.</li>
+      </ol>
+
+      <h3>Take the vCenter snapshot</h3>
+      <ol class="steps">
+        <li>vCenter → right-click the VM → <strong>Snapshots</strong> → <strong>Take Snapshot…</strong></li>
+        <li>Name it obviously: <code class="k">pre-patch 2026-08-25 (initials)</code>.</li>
+        <li>Leave <strong>"Snapshot the VM's memory"</strong> unchecked for a normal patch (disk-only is cleaner and faster).</li>
+        <li>Click OK — done in seconds. Write down the time so you remember to delete it.</li>
+      </ol>
+
+      <h3>Verify, then clean up</h3>
+      <div class="cmd"><button class="copy">Copy</button>systemctl --failed           <span class="c"># did anything fail to start after reboot?</span>
+systemctl status <span class="ph">sssd</span>        <span class="c"># key services running? (swap names)</span>
+journalctl -xe               <span class="c"># recent errors with context</span>
+cat /etc/redhat-release &amp;&amp; uname -r   <span class="c"># confirm the new version took</span></div>
+      <p class="plain">Also do the real test: can you still log in with your IDM account, and does the app respond?</p>
+      <div class="call green"><p class="h">✓ Healthy → delete the snapshot</p><p>vCenter → right-click VM → <strong>Snapshots</strong> → <strong>Manage Snapshots</strong> → select your pre-patch snapshot → <strong>Delete</strong>. This KEEPS your changes — it just removes the undo point. Deleting a snapshot does NOT undo the patch.</p></div>
+
+      <h3>Restore / roll back</h3>
+      <p class="plain">Pick the lightest tool that fixes it:</p>
+      <table class="g">
+        <tr><th>Situation</th><th>Use this</th><th>Speed</th></tr>
+        <tr><td>Patch broke it, snapshot still there</td><td>Revert vCenter snapshot</td><td>Seconds</td></tr>
+        <tr><td>Snapshot gone / VM won't boot</td><td>Veeam: Instant Recovery</td><td>Minutes</td></tr>
+        <tr><td>Need a full clean copy back</td><td>Veeam: Entire VM Restore</td><td>Longer</td></tr>
+        <tr><td>One file/config clobbered</td><td>Veeam: Guest File Restore</td><td>Minutes</td></tr>
+      </table>
+      <h4>Option A — Revert the snapshot (fastest)</h4>
+      <p class="plain">vCenter → <strong>Snapshots</strong> → <strong>Manage Snapshots</strong> → select <code class="k">pre-patch</code> → <strong>Revert</strong>. The VM returns to its exact pre-patch state (anything changed since is gone). Delete the leftover snapshot after.</p>
+      <h4>Option B — Veeam Instant Recovery (snapshot's gone)</h4>
+      <p class="plain">Runs the VM directly from the backup in minutes. Veeam console → <strong>Home</strong> → <strong>Restore</strong> → <strong>VMware vSphere</strong> → <strong>Restore from backup</strong> → <strong>Entire VM restore</strong> → <strong>Instant recovery</strong>. Pick the VM + last good restore point → original location → finish.</p>
+      <h4>Option C — Entire VM Restore (full clean copy)</h4>
+      <p class="plain">Same path → <strong>Entire VM restore</strong> (no Instant). Select the VM + a restore point (latest or an older date) → restore to original location to overwrite the broken VM.</p>
+      <div class="call blue"><p class="h">▸ After any restore</p><p>Re-run the health checks, confirm IDM login, and remember the box is now <em>unpatched again</em>. Once stable, retry the patch (new snapshot first).</p></div>
+    </section>
+
+    <!-- 14 SCRIPTS -->
+    <section class="panel" id="p14">
+      <p class="eyebrow">Section 14</p>
+      <h2 class="title">Scripts &amp; Cron (make the box do the work)</h2>
+      <p class="lead">A script is just a list of commands saved in a file so you can run them all at once. Cron is the built-in scheduler that runs a script automatically on a timer. Together they turn a 10-step chore into "set it and forget it."</p>
+
+      <h3>Downloading things: curl vs wget</h3>
+      <p class="plain">Both grab things from a web address (URL). The difference is what each is best at.</p>
+      <h4>wget — "just download this file"</h4>
+      <div class="cmd"><button class="copy">Copy</button>wget https://<span class="ph">example.com/file.tar.gz</span>        <span class="c"># save it to the current folder</span>
+wget -O /tmp/app.tgz https://<span class="ph">.../file</span>      <span class="c"># save under a name you choose</span>
+wget -c https://<span class="ph">.../big.iso</span>               <span class="c"># -c = resume a broken download</span></div>
+      <dl class="flags">
+        <dt>(no flag)</dt><dd>Saves the file into the folder you're standing in. Dead simple.</dd>
+        <dt>-O name</dt><dd>Save it under a name/path you pick.</dd>
+        <dt>-c</dt><dd>Continue a download that got cut off partway.</dd>
+      </dl>
+      <h4>curl — "talk to a URL or an API"</h4>
+      <div class="cmd"><button class="copy">Copy</button>curl -O https://<span class="ph">example.com/file.tar.gz</span>     <span class="c"># -O = save with its original name</span>
+curl -o app.tgz https://<span class="ph">.../file</span>          <span class="c"># -o = save under your name</span>
+curl -I https://<span class="ph">satellite.example.com</span>     <span class="c"># -I = headers only: "is it alive?"</span>
+curl -s https://<span class="ph">.../health</span>               <span class="c"># -s = silent, clean for scripts</span></div>
+      <dl class="flags">
+        <dt>-O</dt><dd>Save the file using its original name.</dd>
+        <dt>-o name</dt><dd>Save under a name you choose.</dd>
+        <dt>-I</dt><dd>Fetch only the headers — a quick "is this server up?" test.</dd>
+        <dt>-s</dt><dd>Silent — hides the progress meter so logs stay clean.</dd>
+        <dt>-L</dt><dd>Follow redirects if the URL forwards somewhere else.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ Rule of thumb</p><p>Just grabbing a file? Use <strong>wget</strong>. Checking a service, hitting an API, or scripting a health check? Use <strong>curl</strong>.</p></div>
+
+      <h3>Cron: run a script on a schedule</h3>
+      <p class="plain">Cron is a clock that runs commands for you. Each scheduled line is one "cron job." You manage your own jobs with <code class="k">crontab</code>.</p>
+      <div class="cmd"><button class="copy">Copy</button>crontab -e     <span class="c"># edit YOUR cron jobs (opens an editor)</span>
+crontab -l     <span class="c"># list your cron jobs</span>
+crontab -r     <span class="c"># delete ALL your cron jobs (careful — no undo)</span></div>
+      <h4>The five time fields (read left to right)</h4>
+      <div class="cmd"><button class="copy">Copy</button>* * * * *  command-to-run
+| | | | |
+| | | | +-- day of week  (0-6, Sunday = 0)
+| | | +---- month         (1-12)
+| | +------ day of month  (1-31)
+| +-------- hour          (0-23)
++---------- minute        (0-59)</div>
+      <h4>Real examples</h4>
+      <dl class="flags">
+        <dt>0 2 * * *</dt><dd>Every day at 2:00 AM.</dd>
+        <dt>*/15 * * * *</dt><dd>Every 15 minutes.</dd>
+        <dt>0 3 * * 0</dt><dd>3:00 AM every Sunday.</dd>
+        <dt>30 23 1 * *</dt><dd>11:30 PM on the 1st of each month.</dd>
+      </dl>
+
+      <h3>Wire a script into cron the right way</h3>
+      <ol class="steps">
+        <li>Write your script and save it, e.g. <code class="k">/usr/local/bin/backup.sh</code>.</li>
+        <li>Make it runnable:
+          <div class="cmd"><button class="copy">Copy</button>chmod +x /usr/local/bin/backup.sh</div></li>
+        <li>Test it by hand FIRST — fix errors now, not at 2 AM:
+          <div class="cmd"><button class="copy">Copy</button>/usr/local/bin/backup.sh</div></li>
+        <li>Open your cron table:
+          <div class="cmd"><button class="copy">Copy</button>crontab -e</div></li>
+        <li>Add one line — full path, and send output to a log:
+          <div class="cmd"><button class="copy">Copy</button>0 2 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&amp;1</div></li>
+        <li>Confirm it's listed:
+          <div class="cmd"><button class="copy">Copy</button>crontab -l</div></li>
+      </ol>
+      <div class="call amber"><p class="h">◆ The two things that trip everyone up</p><p><strong>Full paths:</strong> cron runs with almost no PATH, so use <code class="k">/usr/bin/hammer</code>, not just <code class="k">hammer</code> — inside your script too. <strong>Log the output:</strong> ending a line with <code class="k">>> file.log 2>&amp;1</code> saves both normal and error messages, so when something fails at 2 AM you can see why.</p></div>
+
+      <h3>Handy scripts to keep in your back pocket</h3>
+
+      <h4>1. Dated backup of a folder (keeps the last 7)</h4>
+      <div class="cmd"><button class="copy">Copy</button>#!/bin/bash
+# Back up a folder into a dated tar.gz, then delete ones older than 7 days
+SRC="<span class="ph">/etc</span>"                               # folder to back up
+DEST="<span class="ph">/backups</span>"                          # where backups go
+STAMP=$(date +%F)                        # today, e.g. 2026-08-26
+tar czf "$DEST/etc-$STAMP.tar.gz" "$SRC"            # make the archive
+find "$DEST" -name 'etc-*.tar.gz' -mtime +7 -delete   # prune old ones
+echo "$(date): backed up $SRC" >> /var/log/mybackup.log</div>
+      <p class="plain">Point cron at it (2 AM daily) and you have automatic backups. What each line does, top to bottom: pick the source and destination, stamp today's date, tar it up, delete anything older than 7 days, then write a line to a log.</p>
+
+      <h4>2. Warn when a disk is filling up</h4>
+      <div class="cmd"><button class="copy">Copy</button>#!/bin/bash
+# Print any filesystem that is 85% full or more
+df -hP | awk 'NR>1 && $5+0 >= 85 {print $6, "is", $5, "full"}'</div>
+      <p class="plain">Change <code class="k">85</code> to your threshold. Run it from cron every 15 minutes and send the output to a log or your alerting. (This is the automated version of Issue&nbsp;1 in Section&nbsp;12.)</p>
+
+      <h4>3. Dated Satellite export — your core job, automated</h4>
+      <div class="cmd"><button class="copy">Copy</button>#!/bin/bash
+# Run a dated incremental content export and log everything
+ORG="<span class="ph">YourOrg</span>"                 # your Satellite org
+CV="<span class="ph">RHEL9-Base</span>"              # your Content View
+VER=$(date +%Y.%m.%d)         # version = today's date
+/usr/bin/hammer content-export incremental version \
+  --content-view "$CV" --version "$VER" \
+  --organization "$ORG" --format importable \
+  >> /var/log/sat-export.log 2>&amp;1</div>
+      <p class="plain">This wraps the Section&nbsp;02 export in a script so a scheduled run produces a fresh, dated export every night with a full log — no typing the long command each time.</p>
+
+      <h4>4. Restart a service if it dies (a simple watchdog)</h4>
+      <div class="cmd"><button class="copy">Copy</button>#!/bin/bash
+SVC="<span class="ph">httpd</span>"                           # service to watch
+if ! systemctl is-active --quiet "$SVC"; then
+  systemctl restart "$SVC"
+  echo "$(date): $SVC was down, restarted it" >> /var/log/watchdog.log
+fi</div>
+      <p class="plain">Cron this every 5 minutes for a scrappy self-healing service. It checks if the service is running; if not, it restarts it and logs when it did.</p>
+    </section>
+
+    <!-- DAY 1 -->
+    <section class="panel" id="p15">
+      <p class="eyebrow">★ Start Here</p>
+      <h2 class="title">Day 1 On-Site: A New Admin's Walk-Through</h2>
+      <p class="lead">Your first day, from walking in to knowing the lay of the land. The golden rule: <strong>observe before you change.</strong> Spend Day 1 finding out what's here and what's healthy — don't "fix" anything until you know what normal looks like and who to tell.</p>
+
+      <h3>Before you log into anything</h3>
+      <ul class="check">
+        <li>Confirm your accounts actually work: <strong>vCenter</strong> login, your <strong>IDM/SSH</strong> login, and <strong>Satellite</strong> login.</li>
+        <li>Learn the <strong>change-control process</strong> — who approves changes and where you log them. In a classified shop this isn't optional.</li>
+        <li>Get the <strong>names and IPs</strong> of the boxes you're responsible for.</li>
+        <li>Find out <strong>who to call</strong> when something breaks (the escalation path).</li>
+      </ul>
+
+      <h3><span class="phase">Phase 1</span>Sign into vCenter and survey</h3>
+      <p class="plain">vCenter is your map of everything. Open the vSphere Client in a browser (<code class="k">https://<span class="ph">vcenter.example.com</span>/ui</code>) and log in. Then, in this order:</p>
+      <ul class="check">
+        <li><strong>Look for ALARMS first</strong> — red or yellow triangles in the left inventory tree, or the alarm bell up top. Red = active problem. Note what's alarming and whether it's yours.</li>
+        <li><strong>Expand the inventory</strong> (left pane): Datacenter → Cluster → Hosts → VMs. Find your RHEL boxes.</li>
+        <li><strong>Check the ESXi hosts</strong> — a host that's disconnected or in maintenance mode drags down every VM on it.</li>
+        <li><strong>Open Monitor → Tasks &amp; Events</strong> for recent activity and errors — it tells you what's been happening lately.</li>
+      </ul>
+
+      <h4>What you're looking at (the dashboard)</h4>
+      <p class="plain">Original diagram of the vSphere Client layout — the real thing looks busier, but these are the parts that matter:</p>
+      <div class="diagram">
+        <svg viewBox="0 0 640 340" role="img" aria-label="vSphere Client dashboard layout">
+          <rect x="8" y="8" width="624" height="324" rx="6" class="dg-box"/>
+          <rect x="8" y="8" width="624" height="30" class="dg-dark"/>
+          <text x="20" y="28" class="dg-w">vSphere Client</text>
+          <circle cx="600" cy="23" r="8" fill="none" stroke="#f4bd5a" stroke-width="2"/>
+          <circle cx="605" cy="18" r="3" fill="#e0655a"/>
+          <rect x="8" y="38" width="150" height="294" class="dg-box"/>
+          <text x="18" y="60" class="dg-t">▸ vCenter</text>
+          <text x="30" y="80" class="dg-t">▸ Datacenter</text>
+          <text x="42" y="100" class="dg-t">▸ Cluster</text>
+          <text x="54" y="120" class="dg-s">▪ esxi-host</text>
+          <text x="66" y="140" class="dg-t">▪ web01</text>
+          <text x="66" y="160" class="dg-t">▪ db01</text>
+          <text x="18" y="196" class="dg-s">(your RHEL VMs)</text>
+          <text x="172" y="56" class="dg-t">Summary</text>
+          <text x="240" y="56" class="dg-t">Monitor</text>
+          <text x="306" y="56" class="dg-t">Configure</text>
+          <text x="382" y="56" class="dg-t">Networks</text>
+          <text x="452" y="56" class="dg-s">Datastores</text>
+          <line x1="172" y1="62" x2="222" y2="62" class="dg-arrow"/>
+          <rect x="170" y="76" width="205" height="86" class="dg-box"/>
+          <text x="182" y="100" class="dg-t">Power state: On</text>
+          <text x="182" y="122" class="dg-s">Guest OS: RHEL 9</text>
+          <text x="182" y="144" class="dg-s">VMware Tools: running</text>
+          <rect x="388" y="76" width="228" height="86" class="dg-accent"/>
+          <text x="400" y="100" class="dg-t">Snapshots: 1</text>
+          <text x="400" y="122" class="dg-s">taken 9 days ago</text>
+          <text x="400" y="144" class="dg-s">→ clean up (red flag)</text>
+          <rect x="170" y="176" width="446" height="58" class="dg-box"/>
+          <text x="182" y="200" class="dg-t">Monitor ▸ Tasks &amp; Events</text>
+          <text x="182" y="220" class="dg-s">recent activity, errors, who did what</text>
+          <g><circle cx="150" cy="150" r="10" class="dg-numbg"/><text x="150" y="154" text-anchor="middle" class="dg-num">1</text></g>
+          <g><circle cx="600" cy="48" r="10" class="dg-numbg"/><text x="600" y="52" text-anchor="middle" class="dg-num">2</text></g>
+          <g><circle cx="256" cy="70" r="10" class="dg-numbg"/><text x="256" y="74" text-anchor="middle" class="dg-num">3</text></g>
+          <g><circle cx="600" cy="72" r="10" class="dg-numbg"/><text x="600" y="76" text-anchor="middle" class="dg-num">4</text></g>
+        </svg>
+      </div>
+      <ol class="legend">
+        <li><strong>Inventory tree</strong> — expand it to find the RHEL VMs you own.</li>
+        <li><strong>Alarm bell</strong> — red/yellow means active problems; glance here first (fixes in Section 12).</li>
+        <li><strong>Monitor tab</strong> — performance charts plus Tasks &amp; Events (what's been happening).</li>
+        <li><strong>Snapshots</strong> on the Summary — old ones are a red flag; clean them up.</li>
+      </ol>
+
+      <h4>Understanding port groups</h4>
+      <p class="plain">A <strong>port group</strong> is a labeled network jack on a virtual switch. A VM "plugs into" a port group to get on a particular network/VLAN — so the port group name (and its VLAN ID) tells you <em>which network the VM is on</em>. Put a VM on the wrong port group and it's on the wrong subnet with no connectivity.</p>
+      <div class="diagram">
+        <svg viewBox="0 0 640 240" role="img" aria-label="How VMs connect through port groups to the physical network">
+          <rect x="16" y="34" width="120" height="48" class="dg-box"/>
+          <text x="76" y="55" text-anchor="middle" class="dg-t">web01 (VM)</text>
+          <text x="76" y="72" text-anchor="middle" class="dg-s">vNIC</text>
+          <rect x="16" y="150" width="120" height="48" class="dg-box"/>
+          <text x="76" y="171" text-anchor="middle" class="dg-t">db01 (VM)</text>
+          <text x="76" y="188" text-anchor="middle" class="dg-s">vNIC</text>
+          <rect x="196" y="28" width="176" height="58" class="dg-accent"/>
+          <text x="284" y="52" text-anchor="middle" class="dg-t">Port Group</text>
+          <text x="284" y="71" text-anchor="middle" class="dg-s">"VLAN100-Prod"</text>
+          <rect x="196" y="146" width="176" height="58" class="dg-accent"/>
+          <text x="284" y="170" text-anchor="middle" class="dg-t">Port Group</text>
+          <text x="284" y="189" text-anchor="middle" class="dg-s">"Management"</text>
+          <rect x="424" y="58" width="88" height="118" class="dg-box"/>
+          <text x="468" y="112" text-anchor="middle" class="dg-t">vSwitch</text>
+          <text x="468" y="130" text-anchor="middle" class="dg-s">(or DVS)</text>
+          <rect x="548" y="84" width="80" height="66" class="dg-dark"/>
+          <text x="588" y="112" text-anchor="middle" class="dg-w">Uplink</text>
+          <text x="588" y="130" text-anchor="middle" class="dg-w" style="font-size:10px">pNIC → net</text>
+          <line x1="136" y1="58" x2="196" y2="57" class="dg-arrow"/>
+          <line x1="136" y1="174" x2="196" y2="175" class="dg-arrow"/>
+          <line x1="372" y1="57" x2="424" y2="96" class="dg-arrow"/>
+          <line x1="372" y1="175" x2="424" y2="138" class="dg-arrow"/>
+          <line x1="512" y1="117" x2="548" y2="117" class="dg-arrow"/>
+        </svg>
+      </div>
+      <p class="caption">VM → its vNIC → a <strong>port group</strong> (the network/VLAN it's on) → the vSwitch → a physical uplink → the real network. To check a VM's network: right-click → Edit Settings → Network adapter → which port group. If a box "can't reach the network," a wrong port group is a prime suspect.</p>
+
+      <h3><span class="phase">Phase 2</span>Check each VM you own</h3>
+      <p class="plain">Click a VM → <strong>Summary</strong>, and look for:</p>
+      <ul class="check">
+        <li><strong>Power state</strong> — is it On?</li>
+        <li><strong>Alarms</strong> on the VM itself.</li>
+        <li><strong>Snapshots</strong> — open <em>Snapshots → Manage Snapshots</em>. Lingering old snapshots are a top red flag: they grow, fill the datastore, and slow the VM. Note any older than a few days to clean up (with approval — see Section 13).</li>
+        <li><strong>VMware Tools</strong> — running and current? It's needed for graceful shutdown and correct IP reporting.</li>
+        <li><strong>Resource usage</strong> — Monitor → Performance. Is CPU/memory pegged, or is "CPU ready" high (the host is starving it)? See Section 10.</li>
+        <li><strong>Note the console</strong> — right-click → <em>Launch Web Console</em>. That's your lifeline if SSH ever dies.</li>
+      </ul>
+
+      <h3><span class="phase">Phase 3</span>Check the datastores (storage)</h3>
+      <p class="plain">A <strong>full datastore freezes every VM on it</strong>, so check this early.</p>
+      <ul class="check">
+        <li>Go to the <strong>Storage</strong> view → click each datastore → check <strong>free space</strong>.</li>
+        <li>Under ~10–15% free is a warning; a full datastore is an emergency.</li>
+        <li>Note which datastore your VMs and their disks live on (you'll need it when adding space — Section 09/10).</li>
+      </ul>
+
+      <h3><span class="phase">Phase 4</span>Get onto the boxes (recon)</h3>
+      <p class="plain">Now SSH in (or use the vCenter console) and confirm the basics on each box. The fuller list is in Section 01.</p>
+      <div class="cmd"><button class="copy">Copy</button>cat /etc/redhat-release        <span class="c"># which RHEL version</span>
+subscription-manager identity  <span class="c"># confirms it feeds from your Satellite</span>
+uptime                         <span class="c"># how long up, and current load</span>
+df -h                          <span class="c"># any filesystems near full?</span>
+systemctl --failed             <span class="c"># anything broken right now?</span></div>
+
+      <h3><span class="phase">Phase 5</span>Identity, DNS &amp; time (the trio that breaks logins)</h3>
+      <p class="plain">These three fail quietly and take logins down with them. Confirm they're healthy.</p>
+      <div class="cmd"><button class="copy">Copy</button>id <span class="ph">yourname</span>                 <span class="c"># does the box see you via IDM?</span>
+timedatectl                    <span class="c"># clock correct + synced? (Kerberos demands it)</span>
+dig <span class="ph">web01.example.com</span>       <span class="c"># does DNS resolve? (try dig -x for reverse)</span></div>
+      <p class="plain">If you own the IDM server, also run <code class="k">ipactl status</code> and <code class="k">ipa-healthcheck</code> there (Section 06/07).</p>
+
+      <h3><span class="phase">Phase 6</span>Patching &amp; backup posture</h3>
+      <ul class="check">
+        <li>When were the boxes last patched? <code class="k">dnf history list | head</code> — and is the Satellite reachable?</li>
+        <li>Is there a <strong>Veeam backup job</strong>, and was its last run <strong>green</strong>? (Section 13.) A missing or failed backup is the first thing you raise.</li>
+      </ul>
+
+      <h3>Golden rules for your first week</h3>
+      <div class="call green"><p class="h">✓ Observe before you change</p><p>Learn what "normal" looks like before touching anything. Most Day 1 damage comes from fixing something that wasn't broken.</p></div>
+      <div class="call amber"><p class="h">◆ Snapshot before any change</p><p>A vCenter snapshot (Section 13) is your instant undo. Take one before your first real change — then delete it once you've confirmed things are fine.</p></div>
+      <div class="call blue"><p class="h">▸ Know your lifeline</p><p>The vCenter <strong>Web Console</strong> works when SSH doesn't, because it doesn't use the network. When a box is "down," that's how you get eyes on it.</p></div>
+      <div class="call red"><p class="h">✕ Log it, and ask</p><p>Record every change in change-control, and when you're unsure — ask. Day 1 is for questions, not heroics.</p></div>
+    </section>
+
+    <!-- 15 LINKS -->
+    <section class="panel" id="p16">
+      <p class="eyebrow">Section 15</p>
+      <h2 class="title">Hard &amp; Soft Links (the thing that trips people up)</h2>
+      <p class="lead">A link is just an extra name for a file. There are two kinds, and they behave very differently when you delete or move things. First, one idea that makes it all click.</p>
+
+      <h3>The key idea: names vs. the actual data</h3>
+      <p class="plain">On Linux, the real file — its data and details — lives in something called an <strong>inode</strong> (think of it as a numbered storage box on the disk). The <strong>filename</strong> you see is just a <em>label</em> that points at that box. Normally one label per box. Links let you have more than one.</p>
+
+      <h3>What an inode actually is (its full purpose)</h3>
+      <p class="plain">Since inodes explain <em>everything</em> about how links behave, here's the real definition. An inode is the filesystem's <strong>record card</strong> for a file. It holds everything about the file <strong>except two things: the file's name and its actual contents.</strong></p>
+      <h4>What's stored INSIDE an inode</h4>
+      <dl class="flags">
+        <dt>Type</dt><dd>Whether it's a regular file, a directory, or a link.</dd>
+        <dt>Permissions</dt><dd>The read/write/execute bits (who can do what).</dd>
+        <dt>Owner / Group</dt><dd>The user and group that own it (as ID numbers).</dd>
+        <dt>Size</dt><dd>How big the file is.</dd>
+        <dt>Timestamps</dt><dd>When it was last modified, accessed, and changed.</dd>
+        <dt>Link count</dt><dd>How many names currently point at this inode — the number that makes hard links work.</dd>
+        <dt>Data pointers</dt><dd>The map to the actual blocks on disk where the contents live.</dd>
+      </dl>
+      <h4>What's deliberately NOT in the inode</h4>
+      <dl class="flags">
+        <dt>The filename</dt><dd>That lives in the <em>directory</em>, which is really just a table matching names → inode numbers.</dd>
+        <dt>The contents</dt><dd>Those sit in separate data blocks that the inode points to.</dd>
+      </dl>
+      <p class="plain">That split — name in the directory, everything else in the inode — is the whole trick behind links. Because the name and the inode are separate things, several names can point at one inode, and the data survives as long as the inode's link count is above zero.</p>
+      <div class="cmd"><button class="copy">Copy</button>ls -i <span class="ph">file</span>        <span class="c"># show a file's inode number</span>
+stat <span class="ph">file</span>         <span class="c"># the inode number, link count, and ALL the metadata above</span>
+df -i               <span class="c"># how many inodes are used/free on each filesystem</span></div>
+      <h4>Why it matters on the job</h4>
+      <dl class="flags">
+        <dt>Finding files</dt><dd>The filesystem locates every file through its inode — the name is just a lookup that hands back an inode number.</dd>
+        <dt>Deleting</dt><dd>"Delete" removes a name and drops the link count by one; the data is only freed when the count hits zero. That's why a hard-linked file survives deleting one name.</dd>
+        <dt>Cross-drive limit</dt><dd>Inode numbers are unique only <em>within one filesystem</em>, which is exactly why a hard link can't cross drives.</dd>
+        <dt>Running out</dt><dd>A filesystem is built with a <strong>fixed number</strong> of inodes. Millions of tiny files can use them all up while disk space remains — then new files fail with "No space left on device" even though <code class="k">df -h</code> shows room. Check with <code class="k">df -i</code> (see Section 12).</dd>
+      </dl>
+
+      <h3>Hard link — a second real name for the same data</h3>
+      <p class="plain">A hard link is another label pointing at the <strong>same</strong> storage box (inode). Both names are equal — there's no "original" and no "copy." The data itself sticks around until the <em>last</em> name pointing to it is deleted.</p>
+      <div class="cmd"><button class="copy">Copy</button>ln <span class="ph">realfile.txt</span> <span class="ph">secondname.txt</span>   <span class="c"># make a hard link (same data, two names)</span></div>
+      <dl class="flags">
+        <dt>Delete one</dt><dd>The other name still works and the data is fine. Data only disappears when the last name is gone.</dd>
+        <dt>Across drives?</dt><dd><strong>No.</strong> Hard links only work within the <em>same</em> filesystem/drive (the box numbers are per-drive).</dd>
+        <dt>Link a folder?</dt><dd><strong>No</strong> — hard links are for files, not directories.</dd>
+        <dt>Move the file?</dt><dd>Still works — every name points at the data box, not a location.</dd>
+      </dl>
+
+      <h3>Soft link (symlink) — a signpost to a path</h3>
+      <p class="plain">A soft link is a tiny separate file that just holds <em>the path to another name</em> — like a signpost that says "the real thing is over there." It doesn't point at the data box directly; it points at a <em>name/location</em>.</p>
+      <div class="cmd"><button class="copy">Copy</button>ln -s /path/to/<span class="ph">realfile.txt</span> <span class="ph">linkname</span>   <span class="c"># make a soft link (-s = symbolic)</span></div>
+      <dl class="flags">
+        <dt>Delete the target</dt><dd>The signpost is left pointing at nothing — a "dangling" (broken) link. The link itself still exists but leads nowhere.</dd>
+        <dt>Delete the link</dt><dd>The real file is untouched. You just removed the signpost.</dd>
+        <dt>Across drives?</dt><dd><strong>Yes.</strong> It's just a path, so it can point anywhere — another drive, another filesystem.</dd>
+        <dt>Link a folder?</dt><dd><strong>Yes</strong> — symlinks can point at directories too. This is why they're everywhere.</dd>
+        <dt>Move the target?</dt><dd>The link <strong>breaks</strong> — the path it stored no longer leads to the file.</dd>
+      </dl>
+
+      <h3>Side by side</h3>
+      <table class="g">
+        <tr><th>&nbsp;</th><th>Hard link</th><th>Soft link (symlink)</th></tr>
+        <tr><td>Points at</td><td>the data box (inode) directly</td><td>a path/name (a signpost)</td></tr>
+        <tr><td>Delete the original</td><td>other name still works</td><td>link breaks (dangling)</td></tr>
+        <tr><td>Works across drives</td><td>No</td><td>Yes</td></tr>
+        <tr><td>Can point at a folder</td><td>No</td><td>Yes</td></tr>
+        <tr><td>If the target moves</td><td>still works</td><td>breaks</td></tr>
+        <tr><td>Made with</td><td><code class="k">ln</code></td><td><code class="k">ln -s</code></td></tr>
+      </table>
+
+      <h3>How to see what's what</h3>
+      <div class="cmd"><button class="copy">Copy</button>ls -li            <span class="c"># 1st column = inode number; hard links share the SAME number</span>
+                  <span class="c"># the count after permissions = how many names point to the data</span>
+ls -l             <span class="c"># a symlink shows an arrow:  linkname -> /path/to/target</span>
+readlink -f <span class="ph">linkname</span>   <span class="c"># print where a symlink really points</span>
+stat <span class="ph">realfile.txt</span>       <span class="c"># shows the inode and the "Links:" count</span>
+find <span class="ph">/home</span> -samefile <span class="ph">realfile.txt</span>   <span class="c"># find every hard link to that file</span></div>
+
+      <h3>The real purpose (why they exist)</h3>
+      <p class="plain"><strong>Soft links</strong> are the flexible signposts Linux runs on. The classic use is a "current" pointer you can flip to switch versions instantly — and flip back to roll back:</p>
+      <div class="cmd"><button class="copy">Copy</button>ln -s /opt/app/<span class="ph">v1.2.3</span> /opt/app/current    <span class="c"># apps read /opt/app/current</span>
+<span class="c"># upgrade later by just re-pointing the signpost:</span>
+ln -sfn /opt/app/<span class="ph">v1.3.0</span> /opt/app/current   <span class="c"># -f replace existing, -n don't follow into the dir</span></div>
+      <p class="plain">You'll see this pattern all over: <code class="k">systemctl enable</code> works by creating symlinks, and <code class="k">/etc/alternatives</code> uses them to pick the default <code class="k">java</code> or <code class="k">python</code>. They also let you put a file where a program expects it without actually moving the real file.</p>
+      <p class="plain"><strong>Hard links</strong> give you two names for one set of data with <em>no extra disk space</em>. The big real-world use is snapshot-style backups (like <code class="k">rsync --link-dest</code>): files that didn't change between backups are hard-linked instead of copied, so ten daily "full" backups can share one copy of every unchanged file and take a fraction of the space.</p>
+      <div class="call blue"><p class="h">▸ The one-line summary</p><p><strong>Hard link</strong> = another real name for the same data (same drive, survives if you delete the other name). <strong>Soft link</strong> = a signpost to a path (works across drives and folders, breaks if the target moves or is deleted). When in doubt, use <code class="k">ln -s</code> — it's the flexible one you'll reach for 95% of the time.</p></div>
+    </section>
+
+    <!-- 16 STIG -->
+    <section class="panel" id="p17">
+      <p class="eyebrow">Section 16</p>
+      <h2 class="title">STIG &amp; SCAP Compliance (hardening RHEL)</h2>
+      <p class="lead">A STIG is DISA's security-hardening checklist for a system. SCAP is the machine-readable version a scanner can check automatically. This tab: what the pieces are, how to run a scan, where the result files go, and the tools — including the Navy ones — that make it easier. First rule: <strong>snapshot before you harden</strong> (Section 13), because some fixes can break a box.</p>
+
+      <h3>The vocabulary (plain terms)</h3>
+      <dl class="flags">
+        <dt>STIG</dt><dd>Security Technical Implementation Guide — DISA's list of required settings to lock a system down.</dd>
+        <dt>SCAP</dt><dd>The automatable file format for those checks, so a tool can scan instead of a human eyeballing each one.</dd>
+        <dt>SSG</dt><dd>SCAP Security Guide — the actual RHEL content (profiles + checks) you scan against. Ships as a package.</dd>
+        <dt>OpenSCAP / oscap</dt><dd>The scanner built into RHEL that runs the SSG content.</dd>
+        <dt>CKL</dt><dd>The checklist file an assessor opens in DISA STIG Viewer — your evidence, marked Open / Not a Finding / N/A.</dd>
+        <dt>CAT I/II/III</dt><dd>Severity of a finding — fix CAT I (high) first.</dd>
+      </dl>
+
+      <h3>Run a STIG scan with OpenSCAP (built into RHEL)</h3>
+      <p class="plain">Install the scanner + content, then confirm the STIG profile is present:</p>
+      <div class="cmd"><button class="copy">Copy</button>dnf install -y openscap-scanner scap-security-guide
+oscap info /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml | grep -i stig</div>
+      <p class="plain">Run the scan — it writes a machine-readable XML and a human-readable HTML report:</p>
+      <div class="cmd"><button class="copy">Copy</button>mkdir -p /var/log/compliance
+oscap xccdf eval \
+  --profile xccdf_org.ssgproject.content_profile_stig \
+  --results /var/log/compliance/stig-results.xml \
+  --report  /var/log/compliance/stig-report.html \
+  /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml</div>
+      <dl class="flags">
+        <dt>--profile …stig</dt><dd>Use the DISA STIG baseline (swap in <code class="k">cis</code>, <code class="k">ospp</code>, or <code class="k">pci-dss</code> for other standards).</dd>
+        <dt>--results</dt><dd>The XML — the data file you archive or feed to other tools.</dd>
+        <dt>--report</dt><dd>The HTML you actually open and read, with findings grouped by STIG ID.</dd>
+        <dt>ssg-rhel9-ds.xml</dt><dd>The content datastream. Use <code class="k">ssg-rhel8-ds.xml</code> on RHEL 8.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ Make a STIG Viewer file</p><p>Add <code class="k">--stig-viewer results-stig.xml</code> to the eval to produce a file you import into DISA STIG Viewer (then <em>Import STIG</em> to match it up). That's what turns a raw scan into the CKL-style artifact an assessor wants.</p></div>
+
+      <h3>Get the files to/from your repository</h3>
+      <p class="plain">In an air-gapped shop the flow mirrors Section 02: the SSG content and DISA benchmarks come IN from your repo/Satellite, and the results go BACK to a compliance share.</p>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># pull the STIG benchmark/content from your internal repo (example)</span>
+curl -O https://<span class="ph">repo.example.com</span>/stig/ssg-rhel9-ds.xml
+
+<span class="c"># ...run the scan... then send the results back to the compliance share</span>
+scp /var/log/compliance/stig-report.html <span class="ph">ian</span>@<span class="ph">repo.example.com</span>:/compliance/web01/</div>
+      <p class="plain">Scan a remote box without an interactive login:</p>
+      <div class="cmd"><button class="copy">Copy</button>oscap-ssh <span class="ph">ian</span>@<span class="ph">web01.example.com</span> 22 xccdf eval \
+  --profile xccdf_org.ssgproject.content_profile_stig \
+  --report /tmp/web01-stig.html \
+  /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml</div>
+
+      <h3>Auto-remediation (careful!)</h3>
+      <p class="plain">OpenSCAP can generate fix scripts from the same profile. Generate, <strong>review</strong>, snapshot, then apply — never blind-apply in production.</p>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># build an Ansible playbook of fixes (also: --fix-type bash)</span>
+oscap xccdf generate fix \
+  --profile xccdf_org.ssgproject.content_profile_stig \
+  --fix-type ansible \
+  /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml > stig-remediate.yml</div>
+
+      <h3>The tools you'll hear about (incl. the Navy ones)</h3>
+      <dl class="flags">
+        <dt>OpenSCAP (oscap)</dt><dd>Built into RHEL. Free, scriptable, great for continuous scanning — what the commands above use.</dd>
+        <dt>SCC</dt><dd>SCAP Compliance Checker — DISA's scanner, authored by the Navy's <strong>NIWC Atlantic</strong>. Common across DoD; produces a compliance score + results. (niwcatlantic.navy.mil/scap)</dd>
+        <dt>Evaluate-STIG</dt><dd>The Navy tool (<strong>NAVSEA / NSWC Crane</strong>). A PowerShell script that auto-detects which STIGs apply to a host, runs the checks, and writes the CKL/CKLB checklist for you — turning hours of manual box-ticking into one run. Runs on Linux and Windows. It's a checklist generator, not a vulnerability scanner.</dd>
+        <dt>DISA STIG Viewer</dt><dd>The official manual tool to open and annotate CKL checklists — the "system of record" you submit to your ISSO.</dd>
+      </dl>
+      <div class="call green"><p class="h">✓ Why Evaluate-STIG is loved</p><p>It kills the "paperwork fatigue" — instead of hand-checking every passing item in STIG Viewer, it fills the checklist automatically so you focus on the actual open findings.</p></div>
+
+      <h3>What can break a box (handle with care)</h3>
+      <p class="plain">Some STIG settings are aggressive. Always snapshot first (Section 13), test in Dev, and review fixes rather than blanket-applying them.</p>
+      <dl class="flags">
+        <dt>SELinux</dt><dd>Keep it <strong>Enforcing</strong> — the STIG requires it, and disabling it both fails the STIG and removes protection. Fix denials with policy, don't turn it off. (Check with <code class="k">getenforce</code>.)</dd>
+        <dt>FIPS mode</dt><dd>Enabling FIPS crypto can break older clients/protocols and some apps — test connectivity right after.</dd>
+        <dt>Mount options</dt><dd>Strict <code class="k">noexec</code>/<code class="k">nosuid</code> on /tmp, /var, etc. can stop software that expects to run there.</dd>
+        <dt>Lockout / password rules</dt><dd>Aggressive lockout can lock out service accounts and even you — know the unlock path before you apply it.</dd>
+        <dt>Disabled ciphers</dt><dd>Turning off older SSH ciphers/TLS can cut off legacy systems that only speak the old ones.</dd>
+      </dl>
+      <div class="call amber"><p class="h">◆ The safe loop</p><p>Snapshot → scan (oscap) → read the report → apply fixes a few at a time → re-scan → confirm the box still works → generate the CKL for your ISSO. We can expand later on exactly which STIG IDs bite hardest and how to document exceptions.</p></div>
+    </section>
+
+    <!-- 17 NETWORKING -->
+    <section class="panel" id="p18">
+      <p class="eyebrow">Section 17</p>
+      <h2 class="title">Networking (nmcli): IPs, DNS &amp; config</h2>
+      <p class="lead">On RHEL 8/9 the network is run by NetworkManager, and the everyday tool is <code class="k">nmcli</code>. Editing old ifcfg files by hand is out — nmcli writes the config for you and applies it cleanly. This is daily-driver stuff: see an IP, change an IP, fix DNS.</p>
+
+      <h3>See what you've got</h3>
+      <div class="cmd"><button class="copy">Copy</button>nmcli                       <span class="c"># everything: devices, connections, IPs, DNS</span>
+nmcli device status         <span class="c"># each NIC and whether it's connected</span>
+nmcli connection show       <span class="c"># the saved "connections" (config profiles)</span>
+ip a                        <span class="c"># quick raw view of interfaces + IPs</span>
+ip r                        <span class="c"># the routing table (your default gateway)</span></div>
+      <dl class="flags">
+        <dt>device</dt><dd>The physical NIC (e.g. <code class="k">ens192</code>).</dd>
+        <dt>connection</dt><dd>A saved config profile applied to a device. You edit the connection, not the device.</dd>
+      </dl>
+
+      <h3>Change to a static IP</h3>
+      <p class="plain">Say the connection is named "ens192". Set address, gateway, and DNS, switch it to manual, then bring it up:</p>
+      <div class="cmd"><button class="copy">Copy</button>nmcli con mod "<span class="ph">ens192</span>" ipv4.addresses <span class="ph">10.1.1.50/24</span>
+nmcli con mod "<span class="ph">ens192</span>" ipv4.gateway <span class="ph">10.1.1.1</span>
+nmcli con mod "<span class="ph">ens192</span>" ipv4.dns "<span class="ph">10.1.1.10</span>,<span class="ph">10.1.1.11</span>"
+nmcli con mod "<span class="ph">ens192</span>" ipv4.method manual
+nmcli con up "<span class="ph">ens192</span>"          <span class="c"># apply it now</span></div>
+      <dl class="flags">
+        <dt>con mod</dt><dd>Modify a saved connection (writes the config).</dd>
+        <dt>ipv4.addresses</dt><dd>The IP plus its subnet size (<code class="k">/24</code> = 255.255.255.0).</dd>
+        <dt>ipv4.method manual</dt><dd>Static. Use <code class="k">auto</code> for DHCP instead.</dd>
+        <dt>con up</dt><dd>Activate the connection so the change takes effect.</dd>
+      </dl>
+
+      <h3>Just change DNS</h3>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># replace the DNS servers</span>
+nmcli con mod "<span class="ph">ens192</span>" ipv4.dns "<span class="ph">10.1.1.10</span>,<span class="ph">10.1.1.11</span>"
+<span class="c"># set the search domain</span>
+nmcli con mod "<span class="ph">ens192</span>" ipv4.dns-search "<span class="ph">example.com</span>"
+nmcli con up "<span class="ph">ens192</span>"
+<span class="c"># verify what's actually in use</span>
+resolvectl status
+cat /etc/resolv.conf</div>
+      <div class="call amber"><p class="h">◆ Don't hand-edit /etc/resolv.conf</p><p>NetworkManager rewrites it. Set DNS with <code class="k">nmcli</code> so it sticks across reboots, then read resolv.conf only to confirm.</p></div>
+
+      <h3>Switch back to DHCP</h3>
+      <div class="cmd"><button class="copy">Copy</button>nmcli con mod "<span class="ph">ens192</span>" ipv4.method auto
+nmcli con up "<span class="ph">ens192</span>"</div>
+
+      <h3>Hostname &amp; the hosts file</h3>
+      <div class="cmd"><button class="copy">Copy</button>hostnamectl                          <span class="c"># show current hostname</span>
+hostnamectl set-hostname <span class="ph">web01.example.com</span>   <span class="c"># set it</span>
+cat /etc/hosts                       <span class="c"># static name-to-IP mappings live here</span></div>
+
+      <h3>Config files worth knowing (but edit via nmcli)</h3>
+      <dl class="flags">
+        <dt>/etc/NetworkManager/ system-connections/</dt><dd>Where nmcli saves connection profiles on RHEL 9 (keyfile format).</dd>
+        <dt>/etc/hostname</dt><dd>The system hostname (set it with <code class="k">hostnamectl</code>).</dd>
+        <dt>/etc/hosts</dt><dd>Manual name→IP entries, checked before DNS.</dd>
+        <dt>/etc/resolv.conf</dt><dd>The active DNS resolvers — generated, don't edit by hand.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ The everyday loop</p><p><code class="k">nmcli con mod "&lt;conn&gt;" &lt;setting&gt; &lt;value&gt;</code> to change it → <code class="k">nmcli con up "&lt;conn&gt;"</code> to apply → <code class="k">ip a</code> / <code class="k">resolvectl status</code> to confirm. That's 90% of the network changes you'll ever make.</p></div>
+    </section>
+
+    <!-- 18 ANSIBLE -->
+    <section class="panel" id="p19">
+      <p class="eyebrow">Section 18</p>
+      <h2 class="title">Ansible from Scratch</h2>
+      <p class="lead">Ansible runs the same setup steps on many servers at once, from one control box, over SSH — no agent to install on the targets. You describe what you want in a plain-text file (a "playbook"), and Ansible makes each server match it. We'll build it up line by line.</p>
+
+      <h3>Install it (on your control box only)</h3>
+      <div class="cmd"><button class="copy">Copy</button>dnf install -y ansible-core
+ansible --version</div>
+
+      <h3>The three pieces</h3>
+      <dl class="flags">
+        <dt>Inventory</dt><dd>A list of the servers to manage, grouped by role.</dd>
+        <dt>Playbook</dt><dd>A YAML file describing the tasks to run.</dd>
+        <dt>Modules</dt><dd>The building blocks (install a package, start a service, copy a file…). You call modules instead of writing shell.</dd>
+      </dl>
+
+      <h3>Step 1 — an inventory file</h3>
+      <p class="plain">Make a file called <code class="k">inventory.ini</code>. Names in brackets are groups; list hosts under them:</p>
+      <div class="cmd"><button class="copy">Copy</button>[web]
+<span class="ph">web01.example.com</span>
+<span class="ph">web02.example.com</span>
+
+[db]
+<span class="ph">db01.example.com</span></div>
+      <p class="plain">Test that Ansible can reach them (it uses your SSH key from Section 06):</p>
+      <div class="cmd"><button class="copy">Copy</button>ansible -i inventory.ini web -m ping</div>
+      <p class="plain">A green "SUCCESS" / "pong" from each host means you're good.</p>
+
+      <h3>Step 2 — your first playbook, line by line</h3>
+      <p class="plain">Make <code class="k">site.yml</code>. Every line matters — 2-space indentation, no tabs:</p>
+      <div class="cmd"><button class="copy">Copy</button>---
+- name: Set up the web servers        <span class="c"># a friendly name for this "play"</span>
+  hosts: web                          <span class="c"># which inventory group to run on</span>
+  become: yes                         <span class="c"># run as root (via sudo)</span>
+
+  tasks:                              <span class="c"># the list of steps</span>
+    - name: Install Apache            <span class="c"># step 1 — a friendly label</span>
+      ansible.builtin.dnf:            <span class="c"># the module (dnf = packages)</span>
+        name: httpd                   <span class="c"># which package</span>
+        state: present                <span class="c"># "present" = make sure it's installed</span>
+
+    - name: Start and enable Apache   <span class="c"># step 2</span>
+      ansible.builtin.service:        <span class="c"># the service module</span>
+        name: httpd
+        state: started                <span class="c"># make sure it's running</span>
+        enabled: yes                  <span class="c"># and starts on boot</span></div>
+      <dl class="flags">
+        <dt>---</dt><dd>Marks the start of a YAML file.</dd>
+        <dt>- name:</dt><dd>A human label (for plays and tasks). Always include it.</dd>
+        <dt>hosts:</dt><dd>Which group from your inventory to target.</dd>
+        <dt>become: yes</dt><dd>Do it as root (sudo) — needed to install packages, etc.</dd>
+        <dt>tasks:</dt><dd>The ordered list of steps; each is one module call.</dd>
+        <dt>state:</dt><dd>You declare the END STATE you want; Ansible figures out how to get there and skips work already done.</dd>
+      </dl>
+
+      <h3>Step 3 — run it</h3>
+      <div class="cmd"><button class="copy">Copy</button>ansible-playbook -i inventory.ini site.yml
+<span class="c"># preview without changing anything:</span>
+ansible-playbook -i inventory.ini site.yml --check
+<span class="c"># more detail when something fails:</span>
+ansible-playbook -i inventory.ini site.yml -v</div>
+      <div class="call amber"><p class="h">◆ YAML rules that bite beginners</p><p>Spaces only, never Tabs. Indent 2 spaces per level, consistently. A list item starts with <code class="k">- </code>. <code class="k">key: value</code> needs the space after the colon. 90% of "why won't it run" is indentation.</p></div>
+
+      <h3>Ad-hoc commands (no playbook needed)</h3>
+      <p class="plain">Run one thing across every host right now:</p>
+      <div class="cmd"><button class="copy">Copy</button>ansible -i inventory.ini all -a "df -h"          <span class="c"># run a command everywhere</span>
+ansible -i inventory.ini all -m dnf -a "name=vim state=present" --become</div>
+
+      <h3>Real-world playbooks you'll actually use</h3>
+
+      <h4>1. Patch everything (and reboot if needed)</h4>
+      <div class="cmd"><button class="copy">Copy</button>---
+- name: Patch all servers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update every package
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+
+    - name: Reboot only if the update needs it
+      ansible.builtin.reboot:
+      when: ansible_reboot_pending | default(false)</div>
+
+      <h4>2. Create a user and push your SSH key everywhere</h4>
+      <div class="cmd"><button class="copy">Copy</button>---
+- name: Add an admin user
+  hosts: all
+  become: yes
+  tasks:
+    - name: Create the user
+      ansible.builtin.user:
+        name: <span class="ph">jdoe</span>
+        groups: wheel
+        append: yes
+
+    - name: Install their SSH key
+      ansible.posix.authorized_key:
+        user: <span class="ph">jdoe</span>
+        key: "{{ lookup('file', '<span class="ph">/path/jdoe.pub</span>') }}"</div>
+      <p class="caption">Modules named <code class="k">ansible.posix.*</code> or <code class="k">community.*</code> come from a collection — install once with <code class="k">ansible-galaxy collection install ansible.posix</code>.</p>
+
+      <h4>3. Push a config file, then restart the service</h4>
+      <div class="cmd"><button class="copy">Copy</button>---
+- name: Deploy chrony config
+  hosts: all
+  become: yes
+  tasks:
+    - name: Copy the config
+      ansible.builtin.copy:
+        src: <span class="ph">files/chrony.conf</span>
+        dest: /etc/chrony.conf
+      notify: restart chrony          <span class="c"># triggers the handler below</span>
+
+  handlers:
+    - name: restart chrony
+      ansible.builtin.service:
+        name: chronyd
+        state: restarted</div>
+      <p class="plain">A <strong>handler</strong> only runs if a task "notifies" it — so the service restarts <em>only</em> when the file actually changed.</p>
+
+      <div class="call blue"><p class="h">▸ Where to grow next</p><p>Group variables in <code class="k">group_vars/</code>, template config files with the <code class="k">template</code> module (Jinja2), and bundle reusable playbooks into <strong>roles</strong>. But inventory + playbook + <code class="k">ansible-playbook</code> is the whole core — everything else is convenience.</p></div>
+    </section>
+
+    <!-- 19 GOLDEN IMAGES -->
+    <section class="panel" id="p20">
+      <p class="eyebrow">Section 19</p>
+      <h2 class="title">Golden Images &amp; Templates (RHEL → vCenter)</h2>
+      <p class="lead">Build one hardened, fully-configured RHEL box once, turn it into a template, then spin up new servers from it in minutes — each coming up with your baseline already in place. Two ways: convert a VM to a vCenter template, or build an image file with RHEL Image Builder and upload it.</p>
+
+      <h3>Way 1 — build a VM and convert it to a template</h3>
+      <ol class="steps">
+        <li><strong>Build the base VM</strong> in vCenter: create a VM, install RHEL (from ISO, or automated with Kickstart below).</li>
+        <li><strong>Configure it</strong> the way every server should start: register to Satellite, patch, install your standard agents/software, set baseline configs, harden it (STIG, Section 16).</li>
+        <li><strong>Generalize it</strong> — strip machine-specific identity so clones aren't duplicates (cleanup box below).</li>
+        <li><strong>Convert to template:</strong> shut it down, then in vCenter right-click → <strong>Template</strong> → <strong>Convert to Template</strong> (Section 10).</li>
+        <li><strong>Deploy</strong> new servers from it with a Customization Spec for a unique hostname/IP (Section 10).</li>
+      </ol>
+      <div class="call amber"><p class="h">◆ Generalize before you template (run on the VM first)</p><p>Otherwise every clone shares an identity and they'll fight on the network.</p></div>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># clear the unique machine ID (regenerates on next boot)</span>
+truncate -s 0 /etc/machine-id
+
+<span class="c"># remove SSH host keys (each host regenerates its own on boot)</span>
+rm -f /etc/ssh/ssh_host_*
+
+<span class="c"># clean caches, logs, and history</span>
+dnf clean all
+rm -f /root/.bash_history
+
+<span class="c"># then shut down and convert to template in vCenter</span>
+poweroff</div>
+
+      <h3>Way 2 — build an image with RHEL Image Builder</h3>
+      <p class="plain">Image Builder turns a "recipe" (packages + settings) into a ready image file you upload to vCenter. It's in the web console (Cockpit → "Image Builder") or the <code class="k">composer-cli</code> command line.</p>
+      <div class="cmd"><button class="copy">Copy</button>dnf install -y osbuild-composer composer-cli cockpit-composer
+systemctl enable --now osbuild-composer.socket
+
+<span class="c"># see the available output types</span>
+composer-cli compose types
+
+<span class="c"># build a vSphere image from a blueprint you defined (e.g. rhel9-base)</span>
+composer-cli compose start <span class="ph">rhel9-base</span> vmdk
+composer-cli compose status                <span class="c"># wait for FINISHED</span>
+composer-cli compose image <span class="ph">COMPOSE-UUID</span>      <span class="c"># download the .vmdk</span></div>
+      <p class="plain">Then upload the <code class="k">.vmdk</code>/<code class="k">.ova</code> into vCenter (Deploy OVF/OVA, or attach the vmdk to a new VM) and convert that to a template. Now it's a one-click deploy.</p>
+      <dl class="flags">
+        <dt>blueprint</dt><dd>Your recipe — the packages, users, and settings the image should contain (built in the web console or a TOML file).</dd>
+        <dt>vmdk / ova</dt><dd>The vSphere-friendly output formats — pick these so vCenter can use the image directly.</dd>
+      </dl>
+
+      <h3>Automated installs — Kickstart (the base of it all)</h3>
+      <p class="plain">A <strong>Kickstart</strong> file answers every installer prompt (disk layout, users, packages, network) so RHEL installs hands-free — the foundation for repeatable base builds. In a Satellite shop it's served for you; standalone, point the installer at it:</p>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># at the RHEL installer boot prompt, feed it a kickstart:</span>
+inst.ks=https://<span class="ph">repo.example.com</span>/ks/<span class="ph">rhel9-base.ks</span></div>
+      <div class="call blue"><p class="h">▸ Which way to choose</p><p><strong>Convert-a-VM-to-template</strong> is the simplest and most common in a vCenter shop — do that first. <strong>Image Builder</strong> shines when you want the image defined as code and rebuilt automatically. <strong>Kickstart</strong> underpins both by making the base install repeatable.</p></div>
+    </section>
+
+    <!-- 20 MAIL RELAY -->
+    <section class="panel" id="p21">
+      <p class="eyebrow">Section 20</p>
+      <h2 class="title">Mail Relay Server (Postfix)</h2>
+      <p class="lead">A mail relay is one server that all your other boxes hand their outgoing mail to, which then forwards it up to your real mail gateway (the "smarthost"). It's how servers send alerts, cron output, and reports without each one talking out directly. RHEL's tool is Postfix.</p>
+
+      <h3>Two roles — know which you're building</h3>
+      <dl class="flags">
+        <dt>The relay</dt><dd>Accepts mail from your internal servers and forwards it upstream. This is the "mail relay server."</dd>
+        <dt>A null client</dt><dd>Every other server, set to send ALL its mail to the relay and nothing else.</dd>
+      </dl>
+
+      <h3>Build the relay server</h3>
+      <ol class="steps">
+        <li>Install Postfix and start it:
+          <div class="cmd"><button class="copy">Copy</button>dnf install -y postfix
+systemctl enable --now postfix</div></li>
+        <li>Edit <code class="k">/etc/postfix/main.cf</code> — the key settings:
+          <div class="cmd"><button class="copy">Copy</button><span class="c"># who this server is</span>
+myhostname = <span class="ph">mailrelay.example.com</span>
+mydomain   = <span class="ph">example.com</span>
+myorigin   = $mydomain
+
+<span class="c"># listen on all interfaces so other servers can reach it</span>
+inet_interfaces = all
+inet_protocols  = ipv4
+
+<span class="c"># WHO may relay through it — your internal networks ONLY</span>
+mynetworks = 127.0.0.0/8, <span class="ph">10.0.0.0/8</span>
+
+<span class="c"># where to forward everything (your upstream smarthost/gateway)</span>
+relayhost = [<span class="ph">smtp-gw.example.com</span>]:25
+
+<span class="c"># don't accept local delivery for other domains</span>
+mydestination = $myhostname, localhost</div></li>
+        <li>Open the SMTP port and restart:
+          <div class="cmd"><button class="copy">Copy</button>firewall-cmd --permanent --add-service=smtp
+firewall-cmd --reload
+systemctl restart postfix</div></li>
+      </ol>
+      <div class="call red"><p class="h">✕ Don't build an open relay</p><p><code class="k">mynetworks</code> must list only your trusted internal ranges. Allow the world and spammers will use your server and get you blocklisted. Keep it tight.</p></div>
+
+      <h3>If the upstream needs a login (SASL auth)</h3>
+      <div class="cmd"><button class="copy">Copy</button><span class="c"># add to main.cf:</span>
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+
+<span class="c"># create the password file, hash it, lock it down:</span>
+echo "[<span class="ph">smtp-gw.example.com</span>]:25 <span class="ph">user:password</span>" > /etc/postfix/sasl_passwd
+postmap /etc/postfix/sasl_passwd
+chmod 600 /etc/postfix/sasl_passwd*
+systemctl reload postfix</div>
+
+      <h3>Point the other servers at it (null client)</h3>
+      <p class="plain">On each sending server, set just these in <code class="k">/etc/postfix/main.cf</code>, then reload:</p>
+      <div class="cmd"><button class="copy">Copy</button>relayhost = [<span class="ph">mailrelay.example.com</span>]:25
+inet_interfaces = loopback-only        <span class="c"># don't accept inbound mail</span>
+mydestination =                        <span class="c"># deliver nothing locally</span></div>
+      <div class="cmd"><button class="copy">Copy</button>systemctl reload postfix</div>
+
+      <h3>Test it &amp; watch the log</h3>
+      <div class="cmd"><button class="copy">Copy</button>dnf install -y s-nail                            <span class="c"># provides the 'mail' command</span>
+echo "relay test" | mail -s "test from web01" <span class="ph">you@example.com</span>
+tail -f /var/log/maillog                         <span class="c"># watch it hand off, or show the error</span></div>
+      <div class="call blue"><p class="h">▸ After any main.cf change</p><p>Run <code class="k">postfix check</code> for syntax, then <code class="k">systemctl reload postfix</code>. Read <code class="k">/var/log/maillog</code> — it tells you exactly why a message did or didn't relay.</p></div>
+    </section>
+
+    <!-- 21 BASIC COMMANDS -->
+    <section class="panel" id="p22">
+      <p class="eyebrow">Section 21</p>
+      <h2 class="title">Basic Commands (Daily Driver)</h2>
+      <p class="lead">The everyday commands, each with its flags and the <em>why</em>. Learn this tab and you can move around, inspect, and change a RHEL box with confidence. The <code class="k"># comments</code> after each line explain exactly what it does.</p>
+
+      <h3>Where am I &amp; what's here</h3>
+      <div class="cmd"><button class="copy">Copy</button>pwd                 <span class="c"># print working directory — "where am I?"</span>
+ls                  <span class="c"># list files in this folder</span>
+ls -l               <span class="c"># long view: permissions, owner, size, date</span>
+ls -la              <span class="c"># -a also shows hidden dotfiles (.bashrc etc.)</span>
+ls -lh              <span class="c"># -h human sizes (K/M/G instead of bytes)</span>
+ls -lt              <span class="c"># -t newest first (great for "what changed?")</span>
+cd /var/log         <span class="c"># change into a folder</span>
+cd ~                <span class="c"># go to your home;  cd -  = jump back to previous</span></div>
+      <dl class="flags">
+        <dt>-l</dt><dd>Long format — the detail line (permissions/owner/size/date).</dd>
+        <dt>-a</dt><dd>All — include hidden files that start with a dot.</dd>
+        <dt>-h</dt><dd>Human-readable sizes.</dd>
+        <dt>-t</dt><dd>Sort by time, newest first. <code class="k">-R</code> recurses into subfolders.</dd>
+      </dl>
+
+      <h3>Look inside files</h3>
+      <div class="cmd"><button class="copy">Copy</button>cat <span class="ph">file</span>                 <span class="c"># dump the whole file to screen</span>
+less <span class="ph">file</span>                <span class="c"># scroll a file (q quits, / searches)</span>
+head <span class="ph">file</span>                <span class="c"># first 10 lines;  head -n 20 = first 20</span>
+tail <span class="ph">file</span>                <span class="c"># last 10 lines</span>
+tail -f /var/log/messages   <span class="c"># -f follow LIVE — watch new lines appear</span>
+wc -l <span class="ph">file</span>              <span class="c"># -l count how many lines</span></div>
+      <dl class="flags">
+        <dt>-n N</dt><dd>How many lines (head/tail).</dd>
+        <dt>-f</dt><dd>Follow — keep printing new lines as they're written (logs).</dd>
+      </dl>
+
+      <h3>Find things</h3>
+      <div class="cmd"><button class="copy">Copy</button>grep "error" <span class="ph">file</span>          <span class="c"># show lines containing "error"</span>
+grep -i "error" <span class="ph">file</span>       <span class="c"># -i ignore upper/lowercase</span>
+grep -r "error" /etc         <span class="c"># -r search every file in a folder</span>
+grep -n "error" <span class="ph">file</span>       <span class="c"># -n show line numbers</span>
+grep -v "debug" <span class="ph">file</span>       <span class="c"># -v invert: lines that do NOT match</span>
+find /var -name "*.log"      <span class="c"># find files by name</span>
+find / -size +100M           <span class="c"># find files bigger than 100 MB</span>
+which python3                <span class="c"># where does this command live?</span></div>
+      <dl class="flags">
+        <dt>-i / -r / -n</dt><dd>Ignore case / recurse a folder / show line numbers.</dd>
+        <dt>-v</dt><dd>Invert — show the lines that DON'T match.</dd>
+        <dt>find -name / -size / -mtime</dt><dd>Match by name / size / age-in-days. Add <code class="k">-type f</code> for files only.</dd>
+      </dl>
+
+      <h3>Make &amp; edit files/folders</h3>
+      <div class="cmd"><button class="copy">Copy</button>mkdir <span class="ph">newdir</span>              <span class="c"># make a folder</span>
+mkdir -p a/b/c           <span class="c"># -p make the whole path, parents included</span>
+touch <span class="ph">file.txt</span>           <span class="c"># create an empty file (or update its timestamp)</span>
+nano <span class="ph">file.txt</span>            <span class="c"># simple editor: Ctrl-O save, Ctrl-X exit</span>
+vi <span class="ph">file.txt</span>              <span class="c"># always-installed editor: i=insert, Esc, :wq=save+quit</span></div>
+      <p class="plain">Copying, moving, and removing (<code class="k">cp</code> / <code class="k">mv</code> / <code class="k">rm</code> / <code class="k">rsync</code>) are in Section 09, including the <code class="k">rm -rf</code> safety warning.</p>
+
+      <h3>Permissions &amp; ownership</h3>
+      <p class="plain">Reading <code class="k">ls -l</code>: the first block like <code class="k">-rwxr-xr--</code> is <strong>type + owner + group + others</strong>, each a set of <strong>r</strong>ead / <strong>w</strong>rite / e<strong>x</strong>ecute.</p>
+      <div class="cmd"><button class="copy">Copy</button>chmod 644 <span class="ph">file</span>           <span class="c"># rw-r--r--  owner read/write, everyone else read</span>
+chmod 755 <span class="ph">script.sh</span>      <span class="c"># rwxr-xr-x  everyone can run, owner can edit</span>
+chmod +x <span class="ph">script.sh</span>       <span class="c"># just add "executable" so it can be run</span>
+chown <span class="ph">ian</span> <span class="ph">file</span>          <span class="c"># change the owner</span>
+chown <span class="ph">ian</span>:<span class="ph">staff</span> <span class="ph">file</span>    <span class="c"># change owner:group together</span>
+chgrp <span class="ph">staff</span> <span class="ph">file</span>        <span class="c"># change just the group</span></div>
+      <dl class="flags">
+        <dt>The numbers</dt><dd><strong>4</strong>=read, <strong>2</strong>=write, <strong>1</strong>=execute — add them up per column. So <strong>7</strong>=rwx, <strong>6</strong>=rw, <strong>5</strong>=r-x, <strong>4</strong>=r. Order is owner-group-others (e.g. 755).</dd>
+        <dt>+x / -x</dt><dd>Add or remove execute without touching the rest.</dd>
+        <dt>-R</dt><dd>Recursive — apply down a whole folder tree.</dd>
+      </dl>
+
+      <h3>Who am I &amp; switching users</h3>
+      <div class="cmd"><button class="copy">Copy</button>whoami           <span class="c"># my username</span>
+id               <span class="c"># my UID/GID and every group I'm in (wheel = sudo)</span>
+who              <span class="c"># who else is logged in;  w = that plus what they're doing</span>
+sudo <span class="ph">command</span>     <span class="c"># run ONE command as root</span>
+sudo -i          <span class="c"># become a full root shell</span>
+su - <span class="ph">user</span>        <span class="c"># switch to another user</span></div>
+
+      <h3>Processes &amp; services</h3>
+      <div class="cmd"><button class="copy">Copy</button>ps aux                    <span class="c"># every running process</span>
+ps aux | grep <span class="ph">httpd</span>       <span class="c"># find a specific one</span>
+top                       <span class="c"># live monitor (Shift+P=CPU, Shift+M=mem, q quits)</span>
+kill <span class="ph">1234</span>                 <span class="c"># politely ask process 1234 to stop</span>
+kill -9 <span class="ph">1234</span>              <span class="c"># force-kill (last resort — no cleanup)</span>
+pkill <span class="ph">httpd</span>               <span class="c"># kill by name instead of number</span>
+systemctl status <span class="ph">httpd</span>     <span class="c"># is a service running? last error line?</span>
+systemctl restart <span class="ph">httpd</span>    <span class="c"># restart it</span>
+systemctl enable --now <span class="ph">httpd</span>  <span class="c"># start now AND on every boot</span></div>
+      <dl class="flags">
+        <dt>ps aux</dt><dd>The everyday "show me everything" form (all users, with detail).</dd>
+        <dt>kill -9</dt><dd>The forceful signal — use only when a normal <code class="k">kill</code> won't work.</dd>
+        <dt>enable --now</dt><dd>Enable (start on boot) and start immediately, in one command.</dd>
+      </dl>
+
+      <h3>System info &amp; health</h3>
+      <div class="cmd"><button class="copy">Copy</button>uname -a               <span class="c"># kernel version + architecture</span>
+cat /etc/os-release    <span class="c"># which RHEL version this is</span>
+hostnamectl            <span class="c"># hostname, OS, and "is this a VM?"</span>
+uptime                 <span class="c"># how long up + load average</span>
+free -h                <span class="c"># memory used/free (human sizes)</span>
+df -h                  <span class="c"># disk space per filesystem</span>
+du -sh /var            <span class="c"># total size of one folder</span>
+lscpu                  <span class="c"># CPU details</span>
+lsblk                  <span class="c"># disks and partitions</span></div>
+
+      <h3>Networking — pull an IP &amp; test it</h3>
+      <div class="cmd"><button class="copy">Copy</button>ip a                   <span class="c"># all interfaces + their IP addresses  ← "pull an IP"</span>
+ip -br a               <span class="c"># -br brief: one clean line per interface</span>
+ip a show <span class="ph">ens192</span>       <span class="c"># just one interface</span>
+hostname -I            <span class="c"># quickest: only my IP address(es)</span>
+ip r                   <span class="c"># routing table (shows the default gateway)</span>
+ping -c4 <span class="ph">10.1.1.1</span>       <span class="c"># -c4 send 4 pings then stop</span>
+ss -tulpn              <span class="c"># which ports are listening (Section 08)</span>
+dig <span class="ph">example.com</span>        <span class="c"># DNS lookup (Section 07)</span></div>
+      <p class="plain">Those <em>show</em> the network. To <em>change</em> the IP/DNS, use <code class="k">nmcli</code> in Section 17.</p>
+
+      <h3>Packages (find &amp; install software)</h3>
+      <div class="cmd"><button class="copy">Copy</button>dnf search <span class="ph">nginx</span>         <span class="c"># find a package by keyword</span>
+dnf info <span class="ph">httpd</span>           <span class="c"># details about a package</span>
+dnf install <span class="ph">httpd</span>        <span class="c"># install it</span>
+dnf remove <span class="ph">httpd</span>         <span class="c"># uninstall it</span>
+dnf list installed        <span class="c"># everything installed</span>
+rpm -qa | grep <span class="ph">httpd</span>     <span class="c"># is a specific package installed?</span></div>
+
+      <h3>Pipes, redirection &amp; chaining (how commands combine)</h3>
+      <p class="plain">This is where the power comes from — glue small commands together:</p>
+      <div class="cmd"><button class="copy">Copy</button>command > <span class="ph">file</span>        <span class="c"># send output INTO a file (overwrites it)</span>
+command >> <span class="ph">file</span>       <span class="c"># append output to the end of a file</span>
+command 2> err.log    <span class="c"># send error messages to a file</span>
+cmd1 | cmd2           <span class="c"># pipe: cmd1's output becomes cmd2's input</span>
+cmd1 &amp;&amp; cmd2          <span class="c"># run cmd2 only if cmd1 succeeded</span>
+ps aux | grep httpd | wc -l   <span class="c"># example: count httpd processes</span></div>
+      <dl class="flags">
+        <dt>&gt; / &gt;&gt;</dt><dd>Overwrite a file / append to it.</dd>
+        <dt>|</dt><dd>Pipe — feed one command's output straight into the next.</dd>
+        <dt>&amp;&amp;</dt><dd>"And then, only if that worked" — chain safe sequences.</dd>
+      </dl>
+
+      <h3>Text tools (quick wins)</h3>
+      <div class="cmd"><button class="copy">Copy</button>sort <span class="ph">file</span>                    <span class="c"># sort lines alphabetically</span>
+uniq <span class="ph">file</span>                    <span class="c"># collapse repeated adjacent lines</span>
+cut -d: -f1 /etc/passwd      <span class="c"># -d delimiter, -f field → pull usernames</span>
+sed 's/old/new/g' <span class="ph">file</span>       <span class="c"># find &amp; replace text (g = every match)</span>
+awk '{print $1}' <span class="ph">file</span>        <span class="c"># print the first column of each line</span></div>
+
+      <h3>Help &amp; shortcuts (daily quality of life)</h3>
+      <div class="cmd"><button class="copy">Copy</button>man <span class="ph">ls</span>             <span class="c"># full manual for a command (q to quit)</span>
+<span class="ph">ls</span> --help        <span class="c"># quick usage summary</span>
+history           <span class="c"># your past commands</span>
+!!                <span class="c"># re-run the last command</span>
+!123              <span class="c"># re-run history line 123</span></div>
+      <dl class="flags">
+        <dt>Tab</dt><dd>Auto-complete a command or filename (press twice to list options).</dd>
+        <dt>Ctrl+C</dt><dd>Cancel the running command. <code class="k">Ctrl+R</code> search your history. <code class="k">Ctrl+L</code> clear the screen.</dd>
+      </dl>
+
+      <h3>Changing the system — the "to change X, use Y" map</h3>
+      <p class="plain">Almost every change follows the same shape: <strong>edit the setting → apply/restart → verify.</strong></p>
+      <dl class="flags">
+        <dt>IP / DNS</dt><dd><code class="k">nmcli</code> (Section 17).</dd>
+        <dt>Hostname</dt><dd><code class="k">hostnamectl set-hostname &lt;name&gt;</code>.</dd>
+        <dt>Time / timezone</dt><dd><code class="k">timedatectl set-timezone &lt;zone&gt;</code>; <code class="k">chronyc sources</code> to check sync.</dd>
+        <dt>A service</dt><dd><code class="k">systemctl start/stop/restart/enable</code>.</dd>
+        <dt>Permissions / owner</dt><dd><code class="k">chmod</code> / <code class="k">chown</code>.</dd>
+        <dt>Software</dt><dd><code class="k">dnf install / remove</code>.</dd>
+        <dt>A user</dt><dd><code class="k">useradd</code> / <code class="k">usermod</code> (Section 05).</dd>
+        <dt>A config file</dt><dd>Edit with <code class="k">nano</code>/<code class="k">vi</code>, then <code class="k">systemctl reload</code> the service and check the log.</dd>
+      </dl>
+    </section>
+
+    <!-- LAB: RHEL 8->9 -->
+    <section class="panel" id="p23">
+      <p class="eyebrow">★ Guided Lab</p>
+      <h2 class="title">Lab: RHEL 8 → 9 in the Test Environment</h2>
+      <p class="lead">A full dress-rehearsal of a major upgrade — the exact sequence real admins run for a risky change. You build two safety nets first, give the box room, point it at safe test content, then upgrade — and you can bail out at any point. <strong>The order is the lesson.</strong> Each phase links to its deep-dive tab.</p>
+
+      <div class="call blue"><p class="h">▸ The big idea</p><p>A major-version upgrade rewrites the whole OS, so it's risky. You put the safety nets in place <em>before</em> the risk: a durable backup (Veeam), an instant undo (snapshot), and enough room to work. Then you upgrade against test content you can't hurt anything with.</p></div>
+
+      <h3><span class="phase">Phase 1</span>Veeam backup — the keeper</h3>
+      <p class="plain">This is your real, durable copy — it survives even if the VM is deleted. Do it first. (Full detail: Section 13.)</p>
+      <ol class="steps">
+        <li>Open the <strong>Veeam Backup &amp; Replication</strong> console → <strong>Home</strong> → <strong>Jobs</strong>.</li>
+        <li>Find this VM's job and confirm the last run is a green <strong>Success</strong>. If not, right-click → <strong>Start / Active Full</strong> and wait for it.</li>
+      </ol>
+      <div class="call amber"><p class="h">◆ Nuance: Veeam takes its OWN snapshot</p><p>While the job runs, Veeam quietly asks vSphere for a snapshot to grab a consistent copy, then deletes it when done. So you may see a snapshot appear and vanish in vCenter during the backup — that's normal, not a leftover.</p></div>
+
+      <h3><span class="phase">Phase 2</span>vSphere snapshot — the quick undo</h3>
+      <div class="call amber"><p class="h">◆ Nuance: what a snapshot actually IS</p><p>When you take one, VMware <strong>freezes the current disk</strong> and writes every new change to a separate <strong>delta file</strong> (a "redo log"). The original disk stops changing; everything after piles into the delta. That single fact explains everything below.</p></div>
+      <ol class="steps">
+        <li>vCenter → right-click the VM → <strong>Snapshots</strong> → <strong>Take Snapshot…</strong></li>
+        <li>Name it obviously: <code class="k">pre-leapp-8to9-2026-08-26</code>.</li>
+        <li><strong>Leave "Snapshot the virtual machine's memory" UNCHECKED</strong> — you want a clean disk-state point, and you'll be rebooting anyway.</li>
+        <li>OK — done in seconds.</li>
+      </ol>
+      <dl class="flags">
+        <dt>It grows</dt><dd>A big upgrade writes a lot, so the delta balloons — it needs free datastore room to grow into (Phase 3).</dd>
+        <dt>Not a backup</dt><dd>The delta depends on the original disk still being there. If the base disk dies, the snapshot is useless. That's why Veeam came first.</dd>
+        <dt>Revert vs. Delete</dt><dd><strong>Revert</strong> throws the delta away → instant snap back to pre-upgrade. <strong>Delete/Consolidate</strong> merges the delta into the base disk (keeps your changes) and costs real I/O for a big delta — do it in a quiet window.</dd>
+      </dl>
+
+      <h3><span class="phase">Phase 3</span>Provision space — there are TWO different spaces</h3>
+      <div class="call amber"><p class="h">◆ Nuance: datastore space vs guest space</p><p><strong>Datastore free space</strong> (in vSphere) is where the VM's files AND the growing snapshot delta live — fill it and the VM freezes. <strong>Guest free space</strong> (inside RHEL, especially <code class="k">/</code> and <code class="k">/boot</code>) is what Leapp checks to stage RHEL 9. You may need to add to both.</p></div>
+      <ol class="steps">
+        <li><strong>Check the datastore first:</strong> vSphere <strong>Storage</strong> view → click the datastore → confirm healthy free space (the snapshot needs room to grow).</li>
+        <li><strong>Add/expand the guest disk:</strong> right-click the VM → <strong>Edit Settings</strong> → <strong>Add New Device → Hard Disk</strong> (or enlarge the existing disk).</li>
+        <li><strong>Make Linux see it and grow the volume:</strong> rescan, then <code class="k">pvcreate → vgextend → lvextend -r</code> (full steps: Section 09).</li>
+      </ol>
+      <dl class="flags">
+        <dt>Thin provisioning</dt><dd>The virtual disk only uses datastore space as data is actually written (grows on demand). Efficient, but many thin disks growing at once can fill a datastore unexpectedly.</dd>
+        <dt>Thick provisioning</dt><dd>Reserves the full size up front — no surprises, more space used now.</dd>
+        <dt>The /boot catch</dt><dd><code class="k">/boot</code> is usually a plain partition, not LVM, so it's harder to grow. If Leapp complains about <code class="k">/boot</code>, it's often about removing old kernels, not resizing.</dd>
+      </dl>
+      <div class="call blue"><p class="h">▸ The gotcha</p><p>VMware handing the VM a bigger disk does NOT make Linux see it. You must rescan inside the guest, then walk it up the LVM stack. Section 09 has the exact commands.</p></div>
+
+      <h3><span class="phase">Phase 4</span>Point it at the TEST Satellite</h3>
+      <div class="call amber"><p class="h">◆ Nuance: Leapp upgrades TO whatever content the box can reach</p><p>Leapp pulls the RHEL 9 packages from the repos the box points at. So the <strong>test Satellite must actually have RHEL 9 content synced</strong>, in a Content View / Lifecycle Environment this box can reach. If it only has RHEL 8 content, the upgrade physically can't proceed — there's nothing to upgrade <em>to</em>.</p></div>
+      <ol class="steps">
+        <li>Re-register the box to the <strong>test</strong> Satellite (test activation key), or move it into the <strong>Test</strong> lifecycle environment.</li>
+        <li>Confirm the RHEL 9 target repos are enabled/available there (that's the whole point of rehearsing in test — you can't hurt production).</li>
+        <li>Sanity-check it's talking to the test Satellite: <code class="k">subscription-manager identity</code> (Section 01).</li>
+      </ol>
+
+      <h3><span class="phase">Phase 5</span>The upgrade — Leapp</h3>
+      <p class="plain">The mechanics are in Section 04; here's the flow with the VMware nuance that catches people.</p>
+      <div class="cmd"><button class="copy">Copy</button>dnf install -y leapp-upgrade
+leapp preupgrade                 <span class="c"># dry run — writes the report</span>
+less /var/log/leapp/leapp-report.txt   <span class="c"># fix EVERY "Inhibitor"</span>
+leapp upgrade                    <span class="c"># stages RHEL 9</span>
+reboot                           <span class="c"># begins the real upgrade</span></div>
+      <div class="call red"><p class="h">✕ Nuance: watch it through the vSphere Web Console</p><p>The real upgrade runs during a <strong>special boot</strong>, and the VM <strong>reboots more than once</strong> (upgrade environment, then a SELinux relabel). SSH drops during this. Right-click the VM → <strong>Launch Web Console</strong> to watch it — that's your window while the network is down. The extra reboots are expected; don't panic.</p></div>
+
+      <h3><span class="phase">Phase 6</span>Verify, then clean up</h3>
+      <div class="cmd"><button class="copy">Copy</button>cat /etc/redhat-release      <span class="c"># confirm it now says 9.x</span>
+systemctl --failed           <span class="c"># anything broken?</span>
+journalctl -xe               <span class="c"># recent errors</span></div>
+      <p class="plain">Also test for real: log in with your IDM account and check the app responds.</p>
+      <div class="call green"><p class="h">✓ Good → delete (consolidate) the snapshot</p><p>Right-click VM → Snapshots → Manage Snapshots → Delete. Remember this is the <strong>consolidate</strong> action — it merges the delta back into the base disk, so a big delta means real I/O. Do it in a quiet window. This keeps all your changes; it does NOT undo the upgrade.</p></div>
+      <div class="call red"><p class="h">✕ Bad → roll back</p><p><strong>Revert the snapshot</strong> (fast, back to pre-upgrade) if it's still there, or restore from <strong>Veeam</strong> if the snapshot's gone or the VM won't boot (Section 13).</p></div>
+
+      <h3>The nuances to internalize (your VMware weak spot)</h3>
+      <dl class="flags">
+        <dt>A snapshot</dt><dd>is a <em>delta file</em>, it <em>grows</em>, it needs <em>datastore room</em>, and it's <em>not a backup</em>.</dd>
+        <dt>Revert vs Delete</dt><dd>Revert = undo. Delete/Consolidate = keep-and-merge (costs I/O).</dd>
+        <dt>Two spaces</dt><dd>Datastore (vSphere) vs guest filesystem (RHEL) — different things, both may need room.</dd>
+        <dt>Disk handoff</dt><dd>VMware giving a bigger disk ≠ Linux seeing it — you must rescan + LVM.</dd>
+        <dt>The upgrade boot</dt><dd>Multi-reboot; watch via the Web Console, not SSH.</dd>
+        <dt>Test Satellite</dt><dd>must actually hold RHEL 9 content, or Leapp has nothing to upgrade to.</dd>
+      </dl>
+    </section>
+
+    <footer class="foot">
+      <p style="font-weight:700;color:var(--ink);margin:0 0 4px">Air-Gapped RHEL &amp; Satellite Field Manual — v1.1 (2026-08-26) · 23 sections</p>
+      <p style="margin:0 0 6px"><strong>What's new in v1.1:</strong> added the guided "Lab: RHEL 8→9 in the Test Environment" walkthrough (Veeam → snapshot → provision space → test Satellite → Leapp → verify), with the vSphere nuances inline.</p>
+      Commands are real and were checked against current Red Hat Satellite (6.15–6.18) and Veeam / vSphere docs; the rest are standard RHEL&nbsp;9/10. <strong>Amber italic</strong> text inside command boxes = a placeholder to swap for your value (see the table in Section 00). Confirm exact menu names against your installed versions. Tip: <strong>Ctrl/Cmd&nbsp;+&nbsp;P</strong> prints every section as one document.
+    </footer>
+  </main>
+</div>
+
+<script>
+  const btns = Array.from(document.querySelectorAll('.navbtn'));
+  const panels = Array.from(document.querySelectorAll('.panel'));
+  const main = document.querySelector('main');
+  function show(id){
+    btns.forEach(b=>b.setAttribute('aria-current', b.dataset.p===id ? 'true':'false'));
+    panels.forEach(p=>p.classList.toggle('active', p.id===id));
+    window.scrollTo({top:0});
+    if(history.replaceState) history.replaceState(null,'','#'+id);
+  }
+  btns.forEach((b,i)=>{
+    b.addEventListener('click',()=>show(b.dataset.p));
+    b.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+        e.preventDefault();
+        const n=(i+(e.key==='ArrowDown'?1:-1)+btns.length)%btns.length;
+        btns[n].focus(); show(btns[n].dataset.p);
+      }
+    });
+  });
+  const h=(location.hash||'').replace('#','');
+  if(h && document.getElementById(h)) show(h);
+
+  document.querySelectorAll('.cmd .copy').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const block=btn.parentElement.cloneNode(true);
+      block.querySelector('.copy').remove();
+      const text=block.textContent.replace(/\n{3,}/g,'\n\n').trim();
+      const done=()=>{btn.textContent='Copied';btn.classList.add('done');setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('done');},1400);};
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(()=>fb(text,done));
+      } else fb(text,done);
+    });
+  });
+  function fb(text,done){
+    const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){}document.body.removeChild(ta);
+  }
+</script>
+</body>
+</html>
